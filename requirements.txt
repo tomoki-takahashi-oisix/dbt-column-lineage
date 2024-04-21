@@ -1,0 +1,8 @@
+sqlglot
+Flask
+Flask-Cors
+gunicorn
+requests
+pytz
+looker_sdk
+python-liquid

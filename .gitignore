@@ -1,0 +1,6 @@
+.idea
+.envrc
+data/catalog.json
+data/manifest.json
+deploy_aws.sh
+test/*.py
