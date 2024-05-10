@@ -1,6 +1,6 @@
 import json
 from sqlglot import exp, parse_one, MappingSchema
-from sqlglot.errors import ParseError, OptimizeError
+from sqlglot.errors import ParseError, OptimizeError, SqlglotError
 from sqlglot.lineage import lineage
 
 from constants import APP_ROOT
@@ -387,13 +387,9 @@ class DbtSqlglot:
                 else:
                     schema = {}
                 lin = lineage(column, compiled_code, dialect='snowflake', schema=schema)
-            except ValueError:
-                self.logger.info(f'column not found. source={source}, column={column}')
+            except SqlglotError as e:
+                self.logger.error(f'parse error. source={source}, column={column}', e)
                 found = False
-                continue
-            except (ParseError, OptimizeError):
-                self.logger.info(f'parse error. source={source}, column={column}')
-                found = True
                 continue
 
             found = True
