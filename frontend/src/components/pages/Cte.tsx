@@ -329,7 +329,8 @@ export const Cte = () => {
       // await new Promise(resolve => setTimeout(resolve, 1000))
     }
     const query = new URLSearchParams({source, column})
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOSTNAME}/api/v1/cte?${query}`)
+    const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
+    const response = await fetch(`${hostName}/api/v1/cte?${query}`)
     const data = await response.json()
     if (response.status != 200) {
       alert(data['error'])
@@ -378,8 +379,8 @@ export const Cte = () => {
               <CodeMirror ref={codeMirrorRef} value={query} extensions={[sql(), highlightExtension]} />}
           </div>
         </div>
-        {/* 一番上のプルダウン一覧の分が32px*/}
-        <div className="w-1/2" style={{ height: windowHeight - 32 }}>
+        {/* 一番上のプルダウン一覧の分が55px*/}
+        <div className="w-1/2" style={{ height: windowHeight - 55 }}>
           <ReactFlowProvider>
             <CteFlow
               nodes={nodes}

@@ -1,6 +1,8 @@
 import json
+import time
+
 from sqlglot import exp, parse_one, MappingSchema
-from sqlglot.errors import ParseError, OptimizeError, SqlglotError
+from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 
 from constants import APP_ROOT
@@ -22,9 +24,11 @@ class DbtSqlglot:
         self.nodes = []
         self.edges = []
         self.request_depth = request_depth
+        self.dialect = 'snowflake'
 
     def list_schemas(self):
         schemas = []
+        ret = []
         for k in self.dbt_manifest_nodes:
             dbt_node = self.dbt_manifest_nodes[k]
             dbt_schema = dbt_node['schema']
@@ -34,7 +38,9 @@ class DbtSqlglot:
                 dbt_node['package_name'] == self.dbt_metadata['project_name']):
                 schemas.append(dbt_schema)
         schemas.sort()
-        return schemas
+        for schema in schemas:
+            ret.append({'value': schema, 'label': schema})
+        return ret
 
     def list_sources(self, req_schema):
         tmp = []
@@ -48,17 +54,19 @@ class DbtSqlglot:
             dbt_fqn = '/'.join(dbt_node['fqn'][2:-1])
             if dbt_resource_type == 'model' and dbt_schema == req_schema:
                 tmp.append({'fqn': dbt_fqn, 'alias': dbt_alias})
-        res = {}
+        label_fqn_alias = {}
         for t in tmp:
             fqn = t['fqn']
-            if not res.get(fqn):
-                res[fqn] = []
-            res[fqn].append(t['alias'])
-        # self.logger.info(res)
-        # ソート
-        for r in res:
-            res[r].sort()
-        return res
+            if not label_fqn_alias.get(fqn):
+                label_fqn_alias[fqn] = []
+            label_fqn_alias[fqn].append({'value': t['alias'], 'label': t['alias']})
+        ret = []
+        for label in label_fqn_alias:
+            # ソート
+            label_fqn_alias[label].sort(key=lambda v: v['label'])
+            ret.append({'label': label, 'options': label_fqn_alias[label]})
+        ret = sorted(ret, key=lambda x:x['label'])
+        return ret
 
     def list_columns(self, req_schema, req_source):
         for k in self.dbt_manifest_nodes:
@@ -67,7 +75,10 @@ class DbtSqlglot:
             dbt_alias = dbt_node['alias']
             dbt_columns = dbt_node['columns']
             if dbt_schema == req_schema and dbt_alias == req_source:
-                return list(dbt_columns.keys())
+                ret = []
+                for key, value in dbt_columns.items():
+                    ret.append({'value': key, 'label': value['name'], 'description': value['description']})
+                return ret
 
     def cte_dependency(self, source: str, columns: []):
         dbt_node = self.get_dbt_node(source)
@@ -91,7 +102,8 @@ class DbtSqlglot:
 
         if len(columns) > 0:
             depends_on_table_info = self.get_depends_on_table_info(dbt_depends_on_nodes)
-            items, found = self.get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info)
+            items = self.get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info)
+            self.logger.debug(items)
 
             for item in items.values():
                 for label in item['labels']:
@@ -99,9 +111,14 @@ class DbtSqlglot:
                 for column in item['columns']:
                     lineage_columns.append(column.lower())
 
-            self.logger.debug(items, found)
+        try:
+            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
+            ctes = parsed_sql.find_all(exp.CTE)
+        except SqlglotError:
+            self.logger.error(f'parse cte error. source={source}')
+            ctes = []
 
-        for cte in parse_one(compiled_code, dialect='snowflake').find_all(exp.CTE):
+        for cte in ctes:
             dependencies[cte.alias_or_name] = []
 
             nodes.append({
@@ -111,12 +128,21 @@ class DbtSqlglot:
             })
 
             query = cte.this.sql()
-            for table in parse_one(query).find_all(exp.Table):
+            try:
+                parsed_cte_query = parse_one(query, dialect=self.dialect)
+                tables = parsed_cte_query.find_all(exp.Table)
+            except SqlglotError:
+                self.logger.error(f'parse cte sql error. source={source}, query={query}')
+                tables = []
+
+            for table in tables:
                 has_db = False
                 if table.db and table.catalog:
                     if table.name in lineage_tables and len(lineage_columns) > 0:
+                        dc = self.get_dbt_catalog(table.name)
                         dn = self.get_dbt_node(table.name)
-                        dn_columns = list(dn.get('columns', {}).keys())
+                        # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
+                        dn_columns = list(dc.get('columns', dn.get('columns', {})).keys())
 
                         # dbt の定義に該当するカラムだけに絞り込む
                         filtered_columns = self.get_columns(dn_columns, lineage_columns)
@@ -182,12 +208,12 @@ class DbtSqlglot:
         return dn_columns
 
     def recursive(self, base_source: str, next_source: str, base_column: str, next_columns: [], depth: int) -> None:
+        dbt_catalog = self.get_dbt_catalog(next_source)
         dbt_node = self.get_dbt_node(next_source)
         dbt_compiled_code = dbt_node.get('compiled_code')
-        dbt_resource_type = dbt_node.get('resource_type')
         dbt_schema = dbt_node.get('schema')
         dbt_depends_on_nodes = dbt_node.get('depends_on', {}).get('nodes', [])
-        dbt_columns = list(dbt_node.get('columns', {}).keys())
+        dbt_columns = list(dbt_catalog.get('columns', dbt_node.get('columns', {})).keys())
 
         # dbt の定義に該当するカラムだけに絞り込む
         filtered_columns = self.get_columns(dbt_columns, next_columns)
@@ -197,22 +223,14 @@ class DbtSqlglot:
         # エッジ作成
         self.add_edge(base_column, filtered_columns, base_source, next_source)
 
-        # snapshot や seed はパースエラーになってしまうのでリネージしない
-        if dbt_resource_type != 'model':
+        if dbt_compiled_code is None:
+            self.logger.info('dbt_compiled_code is None')
             after_next_sources_columns_dict = {}
-            self.logger.info(f'skip lineage: {next_source}, {dbt_resource_type}')
         else:
-            if dbt_compiled_code is None:
-                self.logger.info('dbt_compiled_code is None')
-                return
-
             # リネージの手がかりとして依存テーブルのカラムやテーブル情報を作成
             additional_dbt_sources = self.get_depends_on_table_info(dbt_depends_on_nodes)
 
-            after_next_sources_columns_dict, found = self.get_sqlglot_lineage(next_source, dbt_compiled_code, filtered_columns, additional_dbt_sources)
-            if not found:
-                self.logger.info(f'lineage not found:{found}')
-                return
+            after_next_sources_columns_dict = self.get_sqlglot_lineage(next_source, dbt_compiled_code, filtered_columns, additional_dbt_sources)
 
         depth = depth + 1
         after_base_source = next_source
@@ -242,8 +260,9 @@ class DbtSqlglot:
             element = self.dbt_manifest_nodes.get(depends_on_node, self.dbt_manifest_sources.get(depends_on_node))
             if not element:
                 continue
-            # カラムを取得
-            columns = element.get('columns', {}).keys()
+            # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
+            element_columns = element.get('columns', {})
+            columns = self.get_dbt_catalog(element['name']).get('columns', element_columns)
             res.append({
                 'columns': columns,
                 'table': exp.Table(
@@ -331,10 +350,13 @@ class DbtSqlglot:
 
     def get_columns(self, dbt_columns: [], next_columns: []) -> []:
         if len(dbt_columns) == 0:
-            # cleansing は columns (dbt)の定義がない。。。
+            self.logger.error('dbt_columns is empty')
             return next_columns
 
         ret = []
+        # 小文字に変換
+        dbt_columns = [x.lower() for x in dbt_columns]
+        # next_column が dbt のカラムに含まれているものだけ返す
         for next_column in next_columns:
             if next_column.lower() in dbt_columns:
                 ret.append(next_column)
@@ -359,22 +381,26 @@ class DbtSqlglot:
                 break
         return element
 
-    def get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: []) -> (dict, bool):
-        found = False
-
-        sqlglot_db_schema = {}
-
-        # self.logger.info(sources)
+    def get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: []) -> dict:
+        # MappingSchema にテーブル情報を追加
+        sqlglot_db_schema = MappingSchema(dialect=self.dialect, normalize=False)
         for s in depends_on_table_info:
             source_table = s['table']
             source_columns = s['columns']
-            # self.logger.info(source_table, source_columns)
 
             table_schema = {}
-            for source_column in source_columns:
-                table_schema[source_column.upper()] = None
+            for key, item in source_columns.items():
+                table_schema[key] = item.get('type', 'STRING')
 
-            sqlglot_db_schema[source_table] = table_schema
+            sqlglot_db_schema.add_table(
+                source_table,
+                column_mapping=table_schema,
+            )
+        try:
+            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
+        except SqlglotError:
+            self.logger.error(f'parse sql. source={source}')
+            return {}
 
         ret = {}
         for column in columns:
@@ -382,17 +408,14 @@ class DbtSqlglot:
             labels = set()
             replace_columns = set()
             try:
-                if len(sqlglot_db_schema) != 0:
-                    schema = MappingSchema(schema=sqlglot_db_schema, dialect='snowflake')
-                else:
-                    schema = {}
-                lin = lineage(column, compiled_code, dialect='snowflake', schema=schema)
-            except SqlglotError as e:
-                self.logger.error(f'parse error. source={source}, column={column}', e)
-                found = False
+                start_time = time.time()
+                lin = lineage(column, parsed_sql, dialect=self.dialect, schema=sqlglot_db_schema)
+                end_time = time.time()
+                if end_time - start_time > 3:
+                    self.logger.info(f'lineage time: source={source}, column={column}, time={end_time - start_time}秒')
+            except SqlglotError:
+                self.logger.error(f'lineage error. source={source}, column={column}')
                 continue
-
-            found = True
 
             for node in lin.walk():
                 if isinstance(node.expression, exp.Table):
@@ -404,14 +427,20 @@ class DbtSqlglot:
                 if node.name != '*' and not isinstance(node.expression, exp.Table):
                     cte = node.expression.sql()
                     # self.logger.info(cte)
-                    for c in parse_one(cte).find_all(exp.Column):
+                    try:
+                        parsed_sql = parse_one(cte, dialect=self.dialect)
+                        cl = parsed_sql.find_all(exp.Column)
+                    except SqlglotError:
+                        self.logger.error(f'cte parse error. source={source}, column={column}, cte={cte}')
+                        cl = []
+                    for c in cl:
                         # self.logger.info(f'alias_or_name={c.alias_or_name}')
                         replace_columns.add(c.alias_or_name)
                     # if self.replace_columns:
                     #     self.logger.info(f'{node.name} =>{self.replace_columns}')
             ret[column] = {'labels': list(labels), 'columns': list(replace_columns)}
         self.logger.info(f'{source}, {ret}')
-        return ret, found
+        return ret
 
     def str_to_base_10_int_str(self, s:str) -> str:
         return str(int(s, 36))

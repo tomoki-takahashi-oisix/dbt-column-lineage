@@ -1,6 +1,7 @@
 FROM node:21 as node-builder
 WORKDIR /frontend
 
+ENV NODE_ENV production
 COPY frontend/package-lock.json frontend/package.json ./
 RUN npm ci
 COPY frontend .
@@ -24,4 +25,4 @@ COPY data/*.json data/
 WORKDIR /app/src
 COPY src .
 
-ENTRYPOINT ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+ENTRYPOINT ["gunicorn", "-b", "0.0.0.0:5000", "--timeout", "600", "app:app"]

@@ -60,7 +60,8 @@ export const Cl = () => {
     }
 
     const query = new URLSearchParams({source, column})
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOSTNAME}/api/v1/lineage?${query}`)
+    const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
+    const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
     if (response.status != 200) {
       alert(data['error'])
@@ -112,12 +113,12 @@ export const Cl = () => {
   }, [])
 
   return (
-    // 一番上のプルダウン一覧の分が32px
+    // 一番上のプルダウン一覧の分が55px
   <div>
     <Header handleFetchData={handleFetchData} />
     <div className="flex flex-wrap">
       <ReactFlowProvider>
-        <div className={sidebarActive ? "w-5/6" : "w-[calc(100%-20px)]"} style={{ height: windowHeight - 32 }}>
+        <div className={sidebarActive ? "w-5/6" : "w-[calc(100%-20px)]"} style={{ height: windowHeight - 55 }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}

@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: 0,123,245;
+}
+
 .markdown {
   @apply text-gray-900 leading-normal break-words;
 }
