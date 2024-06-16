@@ -2,6 +2,9 @@
 import { useRouter, usePathname, useSearchParams, useParams } from 'next/navigation'
 import React, { useCallback, useEffect, useState } from 'react'
 import { Select } from '@/components/ui/Select'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+import { useStore as useStoreZustand } from '@/store/zustand'
 
 interface HeaderProps {
   handleFetchData: Function,
@@ -16,6 +19,9 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   const [schema, setSchema] = useState('obt')
   const [source, setSource] = useState('obt_sales_order')
   const [column, setColumn] = useState('week_ver')
+
+  const loading = useStoreZustand((state) => state.loading)
+  const setLoading = useStoreZustand((state) => state.setLoading)
 
   const router = useRouter()
   const pathname = usePathname()
@@ -79,7 +85,9 @@ export const Header = ({handleFetchData}: HeaderProps) => {
     const qDepth = searchParams.get('depth')
     const params = { schema: qSchema, source: qSource, column: qColumn, depth: qDepth }
     if (qSchema && qSource) {
+      setLoading(true)
       const re = await handleFetchData(params)
+      setLoading(false)
       if (re) {
         // schema や source が変化した場合(=/cte の codejump のときやリロード時)には、それに合わせてプルダウンを変更する
         handleFetchSchemasData()
@@ -144,7 +152,12 @@ export const Header = ({handleFetchData}: HeaderProps) => {
 
           <button type="button"
                   className="border-[1px] border-blue-400 px-3 py-1.5 bg-blue-400 text-s text-white font-semibold rounded hover:bg-blue-500"
-                  onClick={e => submit()}>Submit
+                  onClick={e => submit()}>
+            {
+              loading
+              ? <FontAwesomeIcon icon={faSpinner} spinPulse />
+              : <span>Submit</span>
+            }
           </button>
           {/*<button onClick={e => {console.log(window.history.state);router.back();}}>back</button>*/}
         </nav>

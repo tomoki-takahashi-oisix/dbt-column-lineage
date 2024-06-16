@@ -1,8 +1,8 @@
 'use client'
 import { useSearchParams } from 'next/navigation'
-import { EventNode } from '@/components/molecules/EventNode'
+import { EventNode, EventNodeProps } from '@/components/molecules/EventNode'
 import { useGetWindowSize } from '@/hooks/useGetWindowSize'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -10,12 +10,11 @@ import ReactFlow, {
   Background,
   Connection,
   Controls,
-  Edge,
   EdgeChange,
-  FitViewOptions,
   Node,
   NodeChange,
   Panel,
+  Position,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
@@ -33,11 +32,12 @@ export type NodeDataType = {
   color: string
   schema: string
   columns: string[]
-  first: boolean,
+  first: boolean
   last: boolean
+  opened?: string[]
+  forceToolbarVisible?: boolean
+  toolbarPosition?: Position
 }
-
-const nodeTypes = { eventNode: EventNode }
 
 export const Cl = () => {
   const { height: windowHeight, width: windowWidth } = useGetWindowSize()
@@ -67,7 +67,6 @@ export const Cl = () => {
       alert(data['error'])
       return false
     }
-    console.log(data)
     if (m == 'a') {
       // TODO マージ方法検討
       const n = [...baseNodes, ...data['nodes'].filter((node: Node) => node.data.name != source)]
@@ -83,6 +82,39 @@ export const Cl = () => {
     setNodesPositioned(false)
     return true
   }, [searchParams])
+
+  const addReverseLineage = useCallback(async({ updateNodeInternals, props, id, source, column }: {updateNodeInternals: Function, props:any, id:string, source: string, column: string} ) => {
+    const merged = new Set()
+    setNodes((nds: Node[]) => nds.map((node: Node) => {
+      // open target node column
+      if (node.data.name == source) {
+        const opened = node.data.opened || []
+        opened.push(column)
+        node.data = { ...node.data, opened, }
+      }
+      // merge target node columns
+      const foundNode = props['nodes'].find((n: Node) => n.data.name == node.data.name)
+      if (foundNode) {
+        const columnsSet = new Set(node.data.columns)
+        for (const c of foundNode.data.columns) {
+          columnsSet.add(c)
+        }
+        node.data.columns = Array.from(columnsSet)
+        merged.add(node.data.name)
+      }
+      return node
+    }))
+    updateNodeInternals(id)
+
+    for (const n of props['nodes']) {
+      if (merged.has(n.data.name)) continue
+      setNodes((nds) => nds.concat(n))
+    }
+    for (const e of props['edges']) {
+      setEdges((eds) => addEdge(e, eds))
+    }
+    setTimeout(() => setNodesPositioned(false), 100)
+  }, [nodes, edges])
 
   const changeRankDir = useCallback(async (value: string) => {
     setOptions({ rankdir: value })
@@ -112,6 +144,12 @@ export const Cl = () => {
     setOptions({ rankdir: 'RL' })
   }, [])
 
+  const nodeTypes = useMemo(
+    () => ({
+      eventNode: (props: EventNodeProps) => <EventNode addReverseLineage={addReverseLineage} {...props} />
+    }),
+    [],
+  )
   return (
     // 一番上のプルダウン一覧の分が55px
   <div>

@@ -19,6 +19,7 @@ class DbtSqlglot:
         self.dbt_manifest_nodes = manifest['nodes']
         self.dbt_manifest_sources = manifest['sources']
         self.dbt_catalog_nodes = catalog['nodes']
+        self.dbt_manifest_child_map = manifest['child_map']
 
         self.logger = logger
         self.nodes = []
@@ -79,6 +80,75 @@ class DbtSqlglot:
                 for key, value in dbt_columns.items():
                     ret.append({'value': key, 'label': value['name'], 'description': value['description']})
                 return ret
+
+    def reverse_lineage(self, source: str, column: str) -> dict:
+        dbt_node = self.get_dbt_node(source)
+        unique_id = dbt_node.get('unique_id')
+        refs = self.dbt_manifest_child_map.get(unique_id, [])
+
+        data = {}
+        for ref in refs:
+            ref_dbt_node = self.dbt_manifest_nodes.get(ref)
+            ref_node_name = ref_dbt_node.get('name')
+            ref_schema = ref_dbt_node.get('schema')
+            ref_compiled_code = ref_dbt_node.get('compiled_code')
+            ref_dbt_depends_on_nodes = ref_dbt_node.get('depends_on', {}).get('nodes', [])
+
+            depends_on_table_info = self.get_depends_on_table_info(ref_dbt_depends_on_nodes)
+
+            # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
+            ref_columns = ref_dbt_node.get('columns', self.get_dbt_catalog(ref).get('columns', {}))
+            for ref_column in ref_columns:
+                self.logger.info(f'table={ref}, column={ref_column}')
+
+                ref_column_name = ref_column.upper()
+                items = self.get_sqlglot_lineage(source, ref_compiled_code, [ref_column_name], depends_on_table_info)
+                item_labels_columns = items.get(ref_column_name, {})
+                if column in item_labels_columns.get('columns', []):
+                    item_labels = item_labels_columns['labels']
+                    item_columns = item_labels_columns['columns']
+                    if source.upper() in item_labels and column in item_columns:
+                        self.logger.info(f'source={source}, column={column} found')
+                        r = data.get(ref_node_name, {'columns': [], 'schema': ref_schema})
+                        r['columns'].append(ref_column_name)
+                        data[ref_node_name] = r
+
+        ret_nodes = []
+        ret_edges = []
+        ret = {'edges': ret_edges, 'nodes': ret_nodes}
+
+        target_id = self.str_to_base_10_int_str(source)
+        for node_name, item in data.items():
+            target_schema = item['schema']
+            target_columns = item['columns']
+            node_id = self.str_to_base_10_int_str(node_name)
+            base_edge_id = f'{node_id}-{target_id}'
+            ret_nodes.append({
+                'id': node_id,
+                'data': {
+                    'name': node_name,
+                    'color': 'black',
+                    'label': node_name,
+                    'schema': target_schema,
+                    'columns': target_columns,
+                    'first': True,
+                    'last': False
+                },
+                'position': {'x': 0,'y': 0},
+                'type': 'eventNode'
+            })
+            for target_column in target_columns:
+                edge_id = f'{base_edge_id}-{target_column}-{column}'
+                ret_edges.append({
+                    'id': edge_id,
+                    'source': node_id,
+                    'target': target_id,
+                    'source_label': node_name,
+                    'target_label': source,
+                    'sourceHandle': f'{target_column}__source',
+                    'targetHandle': f'{column}__target'
+                })
+        return ret
 
     def cte_dependency(self, source: str, columns: []):
         dbt_node = self.get_dbt_node(source)
@@ -443,7 +513,11 @@ class DbtSqlglot:
         return ret
 
     def str_to_base_10_int_str(self, s:str) -> str:
-        return str(int(s, 36))
+        hash_value = 0
+        for char in s:
+            hash_value = (hash_value << 5) - hash_value + ord(char)
+            hash_value = hash_value & 0xFFFFFFFF  # Convert to 32-bit integer
+        return str(abs(hash_value))
 
     def find(self, arr: [], key: str, value: str):
         for x in arr:

@@ -94,7 +94,7 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
         if (flattenedNodes.length > 0 && !nodesPositioned) {
           const layouted = getLayoutedElements(flattenedNodes, edges, options)
 
-          console.log('redraw')
+          console.log('redraw', layouted)
           // update react flow state
           setNodes(layouted.nodes)
           setEdges(layouted.edges)

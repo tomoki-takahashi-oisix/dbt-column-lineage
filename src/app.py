@@ -162,6 +162,19 @@ def find_lineage():
     return jsonify(res), 200
 
 
+@app.route(f'{BASE_ROUTE}/reverse_lineage', methods=['GET'])
+def find_reverse_lineage():
+    if USE_OAUTH and session.get('access_token') is None:
+        return jsonify({'error': 'not authorized'}), 401
+
+    source = request.args['source']
+    column = request.args['column'].upper()
+
+    dbt_sqlglot = DbtSqlglot(logger)
+    res = dbt_sqlglot.reverse_lineage(source, column)
+    return jsonify(res), 200
+
+
 @app.route(f'{BASE_ROUTE}/cte', methods=['GET'])
 def find_cte():
     if USE_OAUTH and session.get('access_token') is None:

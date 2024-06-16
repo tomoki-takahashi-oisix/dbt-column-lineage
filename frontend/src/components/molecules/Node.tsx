@@ -1,4 +1,6 @@
-import React, { CSSProperties, memo } from 'react'
+import React, { CSSProperties, memo, useCallback } from 'react'
+import { faCopy } from '@fortawesome/free-regular-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 export const contentStyle = {
   contentHeader: {
@@ -74,11 +76,18 @@ const Node: React.FC<NodeProps> = ({
 }: NodeProps) => {
   let customTitle = { ...style.title };
   if (color) customTitle.backgroundColor = color
+  const copyNodeName = useCallback(async(e:React.MouseEvent, label: string) => {
+    await global.navigator.clipboard.writeText(label)
+    alert('Copied to clipboard!: ' + label)
+  },[])
 
   // Collapse contentWrapper on icon click
   return (
     <div style={{ ...style.body, ...(selected ? style.selected : []) }}>
-      <div style={customTitle}>{label}</div>
+      <div style={customTitle}>
+        <span>{label}</span>
+        <FontAwesomeIcon onClick={(e) => copyNodeName(e, label)} className='cursor-pointer mx-1 fa-sm' icon={faCopy} />
+      </div>
       <div style={style.contentWrapper}>{content}</div>
     </div>
   );
