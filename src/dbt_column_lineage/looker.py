@@ -1,9 +1,5 @@
-import re
-from typing import Optional
-
 import looker_sdk
-from looker_sdk.sdk.api40.models import Folder, LookmlModelExploreField
-from liquid import Template, Mode
+from looker_sdk.sdk.api40.models import Folder
 
 
 class Looker:

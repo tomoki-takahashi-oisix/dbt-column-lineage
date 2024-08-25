@@ -3,5 +3,13 @@
 data/catalog.json
 data/manifest.json
 deploy_aws.sh
+pypi.sh
 test/*.py
 out/*
+dist/*
+src/dbt_column_lineage/_version.py
+src/dbt_column_lineage.egg-info/*
+src/dbt_column_lineage/__pycache__/*
+dbt_project.yml
+target/*
+venv/*

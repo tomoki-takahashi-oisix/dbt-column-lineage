@@ -1,8 +1,9 @@
 sqlglot==24.1.0
-Flask==3.0.3
-Flask-Cors==4.0.0
-gunicorn==21.2.0
+fastapi==0.112.1
+uvicorn==0.30.6
 requests==2.31.0
 pytz==2024.1
 looker-sdk==24.4.0
 python-liquid==1.12.1
+itsdangerous==2.2.0
+typer==0.12.5

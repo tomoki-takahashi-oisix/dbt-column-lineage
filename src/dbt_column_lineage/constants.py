@@ -1,6 +1,5 @@
 import os
 
-APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 BASE_ROUTE = '/api/v1'
 DEBUG_MODE = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
 USE_OAUTH = os.getenv('USE_OAUTH', 'false').lower() == 'true'

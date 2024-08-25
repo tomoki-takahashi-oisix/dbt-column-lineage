@@ -5,16 +5,29 @@ from sqlglot import exp, parse_one, MappingSchema
 from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 
-from constants import APP_ROOT
+from dbt_column_lineage.utils import get_dbt_project_dir
 
 
 class DbtSqlglot:
+    _instance = None
+
+    def __new__(cls, logger, request_depth=-1):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self, logger, request_depth=-1):
-        with open(f'{APP_ROOT}/../data/manifest.json') as f:
+        if self._initialized:
+            return
+        self._initialized = True
+
+        dbt_project_dir = get_dbt_project_dir()
+        with open(f'{dbt_project_dir}/target/manifest.json') as f:
             manifest = json.load(f)
-        with open(f'{APP_ROOT}/../data/catalog.json') as f:
+        with open(f'{dbt_project_dir}/target/catalog.json') as f:
             catalog = json.load(f)
+
         self.dbt_metadata = manifest['metadata']
         self.dbt_manifest_nodes = manifest['nodes']
         self.dbt_manifest_sources = manifest['sources']

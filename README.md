@@ -12,17 +12,18 @@ cd dbt-column-lineage
 Then copy the `manifest.json` and `catalog.json` files to the `data` directory:
 ```
 export DBT_PROJECT_PATH=(your dbt project path)
-cp $DBT_PROJECT_PATH/target/manifest.json data/manifest.json
-cp $DBT_PROJECT_PATH/target/catalog.json data/catalog.json
+cp dbt_project.yml .
+cp $DBT_PROJECT_PATH/target/manifest.json target/manifest.json
+cp $DBT_PROJECT_PATH/target/catalog.json target/catalog.json
 ```
 
 Then build and run the docker container:
 ```
 docker build -t dbt_column_lineage .
-docker run -p 5000:5000 dbt_column_lineage
+docker run -p 8000:8000 dbt_column_lineage
 ```
 after the container is running,
-Let's access http://localhost:5000
+Let's access http://localhost:8000
 
 # development
 
@@ -33,12 +34,12 @@ To develop the application, you will need to run the backend and frontend separa
 activate venv and run the following commands:
 ```
 python3 -m venv venv
-source dbt_venv/bin/activate
+source venv/bin/activate
 
 pip install --upgrade pip
 pip install -r requirements.txt
 
-python src/app.py
+python -m src.dbt_column_lineage.main run
 ```
 
 ## for frontend
@@ -58,5 +59,5 @@ If you want to test the OAuth login, you can use the following commands:
 export GOOGLE_CLIENT_ID=(your client id)
 export GOOGLE_CLIENT_SECRET=(your client secret)
 docker build -t test .
-docker run -p 5000:5000 -e USE_OAUTH=true -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET -e DEBUG_MODE=true test
+docker run -p 8000:8000 -e USE_OAUTH=true -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET -e DEBUG_MODE=true test
 ```
