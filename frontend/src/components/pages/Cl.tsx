@@ -11,10 +11,8 @@ import ReactFlow, {
   Connection,
   Controls,
   EdgeChange,
-  Node,
   NodeChange,
   Panel,
-  Position,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
@@ -24,25 +22,31 @@ import 'reactflow/dist/style.css'
 import { Sidebar } from '@/components/organisms/Sidebar'
 import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
+import ToggleButtons from '@/components/ui/ToggleButtons'
 
 // TODO: 一旦ここに書いてあるが、この部分がPluginごとに異なる部分になる想定
 export type NodeDataType = {
-  label: string
   name: string
   color: string
   schema: string
+  materialized: string
   columns: string[]
   first: boolean
   last: boolean
-  opened?: string[]
-  forceToolbarVisible?: boolean
-  toolbarPosition?: Position
+  // opened?: string[]
+  // forceToolbarVisible?: boolean
+  // toolbarPosition?: Position
+}
+
+interface QueryParams {
+  source: string
+  column: string
+  showColumn: string
 }
 
 export const Cl = () => {
   const { height: windowHeight, width: windowWidth } = useGetWindowSize()
   const [nodes, setNodes] = useNodesState([])
-  const [baseNodes, setBaseNodes] = useNodesState([])
   const [edges, setEdges] = useEdgesState([])
   const [viewIsFit, setViewIsFit] = useState(false)
   const [nodesPositioned, setNodesPositioned] = useState(true)
@@ -52,14 +56,14 @@ export const Cl = () => {
   const setOptions = useStoreZustand((state) => state.setOptions)
   const searchParams = useSearchParams()
 
-  const handleFetchData = useCallback(async ({ source, column, m }: { source: string, column: string, m: string }) => {
+  const handleFetchData = useCallback(async ({ source, column, showColumn }: QueryParams) => {
     if (nodes.length != 0) {
       setNodes([])
       setEdges([])
       // await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
-    const query = new URLSearchParams({source, column})
+    const query = new URLSearchParams({source, column, show_column: showColumn})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -67,54 +71,12 @@ export const Cl = () => {
       alert(data['error'])
       return false
     }
-    if (m == 'a') {
-      // TODO マージ方法検討
-      const n = [...baseNodes, ...data['nodes'].filter((node: Node) => node.data.name != source)]
-      const e = [...edges, ...data['edges']]
-      setNodes(n)
-      setEdges(e)
-      setBaseNodes(n)
-    } else {
-      setNodes(data['nodes'])
-      setEdges(data['edges'])
-      setBaseNodes(data['nodes'])
-    }
+    setNodes(data['nodes'])
+    setEdges(data['edges'])
+
     setNodesPositioned(false)
     return true
   }, [searchParams])
-
-  const addReverseLineage = useCallback(async({ updateNodeInternals, props, id, source, column }: {updateNodeInternals: Function, props:any, id:string, source: string, column: string} ) => {
-    const merged = new Set()
-    setNodes((nds: Node[]) => nds.map((node: Node) => {
-      // open target node column
-      if (node.data.name == source) {
-        const opened = node.data.opened || []
-        opened.push(column)
-        node.data = { ...node.data, opened, }
-      }
-      // merge target node columns
-      const foundNode = props['nodes'].find((n: Node) => n.data.name == node.data.name)
-      if (foundNode) {
-        const columnsSet = new Set(node.data.columns)
-        for (const c of foundNode.data.columns) {
-          columnsSet.add(c)
-        }
-        node.data.columns = Array.from(columnsSet)
-        merged.add(node.data.name)
-      }
-      return node
-    }))
-    updateNodeInternals(id)
-
-    for (const n of props['nodes']) {
-      if (merged.has(n.data.name)) continue
-      setNodes((nds) => nds.concat(n))
-    }
-    for (const e of props['edges']) {
-      setEdges((eds) => addEdge(e, eds))
-    }
-    setTimeout(() => setNodesPositioned(false), 100)
-  }, [nodes, edges])
 
   const changeRankDir = useCallback(async (value: string) => {
     setOptions({ rankdir: value })
@@ -146,7 +108,7 @@ export const Cl = () => {
 
   const nodeTypes = useMemo(
     () => ({
-      eventNode: (props: EventNodeProps) => <EventNode addReverseLineage={addReverseLineage} {...props} />
+      eventNode: (props: EventNodeProps) => <EventNode {...props} setNodesPositioned={setNodesPositioned} />
     }),
     [],
   )
@@ -170,6 +132,11 @@ export const Cl = () => {
                 <option value="LR">Left - Right</option>
                 <option value="RL">Right - Left</option>
               </select>
+            </Panel>
+            <Panel position="bottom-left">
+              <div className="App">
+                <ToggleButtons />
+              </div>
             </Panel>
             <Controls />
             <Background style={{ backgroundColor: '#f5f5f5' }} />

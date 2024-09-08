@@ -2,6 +2,7 @@ import logging
 import sys
 from datetime import datetime
 from pytz import timezone
+from fastapi import Request
 
 from dbt_column_lineage.constants import DEBUG_MODE
 
@@ -57,9 +58,9 @@ def get_dbt_project_dir():
     raise ValueError("DBT project directory not found. Please set the DBT_PROJECT_DIR environment variable or run the command from a dbt project directory.")
 
 
-def get_redirect_url(request):
-    host_url = request.host_url
-    if request.scheme == 'http' and 'localhost' not in host_url:
+def get_redirect_url(request: Request):
+    host_url = str(request.base_url)
+    if request.url.scheme == 'http' and 'localhost' not in host_url:
         host_url = host_url.replace('http://', 'https://')
     return host_url + 'callback'
 

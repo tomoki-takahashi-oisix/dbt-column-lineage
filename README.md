@@ -20,7 +20,7 @@ cp $DBT_PROJECT_PATH/target/catalog.json target/catalog.json
 Then build and run the docker container:
 ```
 docker build -t dbt_column_lineage .
-docker run -p 8000:8000 dbt_column_lineage
+docker run -p 5000:5000 dbt_column_lineage
 ```
 after the container is running,
 Let's access http://localhost:8000
@@ -39,7 +39,7 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-python -m src.dbt_column_lineage.main run
+uvicorn --app-dir src dbt_column_lineage.main:app --port=5000 --reload
 ```
 
 ## for frontend
@@ -59,5 +59,5 @@ If you want to test the OAuth login, you can use the following commands:
 export GOOGLE_CLIENT_ID=(your client id)
 export GOOGLE_CLIENT_SECRET=(your client secret)
 docker build -t test .
-docker run -p 8000:8000 -e USE_OAUTH=true -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET -e DEBUG_MODE=true test
+docker run -p 5000:5000 -e USE_OAUTH=true -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET -e DEBUG_MODE=true test
 ```

@@ -27,4 +27,4 @@ COPY src .
 COPY --from=node-builder /frontend/out dbt_column_lineage/frontend_out
 
 WORKDIR /app
-CMD ["uvicorn", "--app-dir", "src", "dbt_column_lineage.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "600"]
+CMD ["uvicorn", "--app-dir", "src", "dbt_column_lineage.main:app", "--host", "0.0.0.0", "--port", "5000", "--timeout-keep-alive", "600"]

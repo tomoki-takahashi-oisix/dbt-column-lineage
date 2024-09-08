@@ -1,3 +1,4 @@
+'use client'
 import { useId } from 'react'
 import SelectComponent, {
   components,
@@ -112,14 +113,7 @@ type SelectProps = {
   useFormatOptionLabel?: boolean
 }
 
-export const Select = ({
-                         options,
-                         className,
-                         isMulti = false,
-                         value,
-                         onChange,
-                         useFormatOptionLabel = false
-                       }: SelectProps) => {
+export const Select = ({ options, className, isMulti = false, value, onChange, useFormatOptionLabel = false }: SelectProps) => {
   return (
     <SelectComponent
       instanceId={useId()}

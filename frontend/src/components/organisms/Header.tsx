@@ -22,6 +22,8 @@ export const Header = ({handleFetchData}: HeaderProps) => {
 
   const loading = useStoreZustand((state) => state.loading)
   const setLoading = useStoreZustand((state) => state.setLoading)
+  const showColumn = useStoreZustand((state) => state.showColumn)
+  const setShowColumn = useStoreZustand((state) => state.setShowColumn)
 
   const router = useRouter()
   const pathname = usePathname()
@@ -74,16 +76,18 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   }, [schema, source])
 
   const submit = useCallback(() => {
-    const query = new URLSearchParams({ schema, source, column })
+    const query = new URLSearchParams({ schema, source, column, show_column: showColumn.toString() })
     router.push(`${pathname}?${query}`)
-  }, [pathname, schema, source, column])
+  }, [pathname, schema, source, column, showColumn])
 
   const routeChange = useCallback(async () => {
+    // console.log('routeChange')
     const qSchema = searchParams.get('schema')
     const qSource = searchParams.get('source')
     const qColumn = searchParams.get('column')
     const qDepth = searchParams.get('depth')
-    const params = { schema: qSchema, source: qSource, column: qColumn, depth: qDepth }
+    const qShowColumn = searchParams.get('show_column')
+    const params = { schema: qSchema, source: qSource, column: qColumn, depth: qDepth, showColumn: qShowColumn }
     if (qSchema && qSource) {
       setLoading(true)
       const re = await handleFetchData(params)
@@ -94,6 +98,7 @@ export const Header = ({handleFetchData}: HeaderProps) => {
         if (params.schema != schema) await changeSchema(params.schema as string, false)
         if (params.source != source) await changeSource(params.schema as string, params.source as string, false)
         if (params.column && params.column != column) setColumn(params.column as string)
+        if (params.showColumn) setShowColumn(params.showColumn == 'true')
       }
     }
   }, [pathname, searchParams])

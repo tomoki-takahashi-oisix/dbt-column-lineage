@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 import requests
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.params import Query
 from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
@@ -136,7 +137,6 @@ async def callback(request: Request, state: str, code: str):
 
 @app.get(f'{BASE_ROUTE}/schemas')
 async def list_schemas(current_user: str = Depends(get_current_user)):
-    logger.debug("list_schemas function called")
     dbt_sqlglot = DbtSqlglot(logger)
     schemas = dbt_sqlglot.list_schemas()
     return JSONResponse(content=schemas)
@@ -157,17 +157,20 @@ async def list_columns(schema: str, source: str, current_user: str = Depends(get
 
 
 @app.get(f'{BASE_ROUTE}/lineage')
-async def find_lineage(source: str, column: str, depth: int = -1, current_user: str = Depends(get_current_user)):
-    dbt_sqlglot = DbtSqlglot(logger, depth)
-    dbt_sqlglot.recursive('', source, '', [column.upper()], 0)
-    res = dbt_sqlglot.nodes_edges()
-    return JSONResponse(content=res)
-
-
-@app.get(f'{BASE_ROUTE}/reverse_lineage')
-async def find_reverse_lineage(source: str, column: str, current_user: str = Depends(get_current_user)):
-    dbt_sqlglot = DbtSqlglot(logger)
-    res = dbt_sqlglot.reverse_lineage(source, column.upper())
+async def find_lineage(
+    source: str = Query(..., description='source table name'),
+    column: str = Query(..., description='column name'),
+    show_column: bool = Query(False, description='show column lineage'),
+    reverse: bool = Query(False, description='reverse lineage'),
+    depth: int = Query(-1, description='depth of lineage', ge=-1),
+    current_user: str = Depends(get_current_user)):
+    if show_column:
+        dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
+        res = dbt_sqlglot.column_lineage(source, column.upper(), reverse)
+    else:
+        # fixme depth=1固定でいいのか
+        dbt_sqlglot = DbtSqlglot(logger, request_depth=1)
+        res = dbt_sqlglot.table_lineage(source, reverse)
     return JSONResponse(content=res)
 
 
@@ -209,7 +212,7 @@ app.mount('/', StaticFiles(directory=str(static_files_path), html=True), name='s
 
 
 @cli.command()
-def run(host: str = '127.0.0.1', port: int = 8000):
+def run(host: str = '127.0.0.1', port: int = 5000):
     import uvicorn
     uvicorn.run('dbt_column_lineage.main:app', host=host, port=port)
 

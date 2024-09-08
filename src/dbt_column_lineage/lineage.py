@@ -18,6 +18,11 @@ class DbtSqlglot:
         return cls._instance
 
     def __init__(self, logger, request_depth=-1):
+        # 毎度初期化する変数
+        self.nodes = []
+        self.edges = []
+        self.request_depth = request_depth
+
         if self._initialized:
             return
         self._initialized = True
@@ -33,11 +38,9 @@ class DbtSqlglot:
         self.dbt_manifest_sources = manifest['sources']
         self.dbt_catalog_nodes = catalog['nodes']
         self.dbt_manifest_child_map = manifest['child_map']
+        self.dbt_manifest_parent_map = manifest['parent_map']
 
         self.logger = logger
-        self.nodes = []
-        self.edges = []
-        self.request_depth = request_depth
         self.dialect = 'snowflake'
 
     def list_schemas(self):
@@ -94,182 +97,41 @@ class DbtSqlglot:
                     ret.append({'value': key, 'label': value['name'], 'description': value['description']})
                 return ret
 
-    def reverse_lineage(self, source: str, column: str) -> dict:
-        dbt_node = self.get_dbt_node(source)
+
+    def table_lineage(self, source: str, revs=False) -> dict:
+        dbt_node = self.__get_dbt_node(source)
         unique_id = dbt_node.get('unique_id')
-        refs = self.dbt_manifest_child_map.get(unique_id, [])
+        depth = 0
+        self.__table_dependencies_recursive(unique_id, revs, depth)
+        return {'edges': self.edges, 'nodes': self.nodes}
 
-        data = {}
-        for ref in refs:
-            ref_dbt_node = self.dbt_manifest_nodes.get(ref)
-            ref_node_name = ref_dbt_node.get('name')
-            ref_schema = ref_dbt_node.get('schema')
-            ref_compiled_code = ref_dbt_node.get('compiled_code')
-            ref_dbt_depends_on_nodes = ref_dbt_node.get('depends_on', {}).get('nodes', [])
 
-            depends_on_table_info = self.get_depends_on_table_info(ref_dbt_depends_on_nodes)
+    def column_lineage(self, source: str, column: str, revs: bool) -> dict:
+        if not revs:
+            depth = 0
+            self.__column_lineage_recursive('', source, '', [column.upper()], depth)
+            return {'edges': self.edges, 'nodes': self.nodes}
+        else:
+            return self.__reverse_column_lineage(source, column)
 
-            # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
-            ref_columns = ref_dbt_node.get('columns', self.get_dbt_catalog(ref).get('columns', {}))
-            for ref_column in ref_columns:
-                self.logger.info(f'table={ref}, column={ref_column}')
-
-                ref_column_name = ref_column.upper()
-                items = self.get_sqlglot_lineage(source, ref_compiled_code, [ref_column_name], depends_on_table_info)
-                item_labels_columns = items.get(ref_column_name, {})
-                if column in item_labels_columns.get('columns', []):
-                    item_labels = item_labels_columns['labels']
-                    item_columns = item_labels_columns['columns']
-                    if source.upper() in item_labels and column in item_columns:
-                        self.logger.info(f'source={source}, column={column} found')
-                        r = data.get(ref_node_name, {'columns': [], 'schema': ref_schema})
-                        r['columns'].append(ref_column_name)
-                        data[ref_node_name] = r
-
-        ret_nodes = []
-        ret_edges = []
-        ret = {'edges': ret_edges, 'nodes': ret_nodes}
-
-        target_id = self.str_to_base_10_int_str(source)
-        for node_name, item in data.items():
-            target_schema = item['schema']
-            target_columns = item['columns']
-            node_id = self.str_to_base_10_int_str(node_name)
-            base_edge_id = f'{node_id}-{target_id}'
-            ret_nodes.append({
-                'id': node_id,
-                'data': {
-                    'name': node_name,
-                    'color': 'black',
-                    'label': node_name,
-                    'schema': target_schema,
-                    'columns': target_columns,
-                    'first': True,
-                    'last': False
-                },
-                'position': {'x': 0,'y': 0},
-                'type': 'eventNode'
-            })
-            for target_column in target_columns:
-                edge_id = f'{base_edge_id}-{target_column}-{column}'
-                ret_edges.append({
-                    'id': edge_id,
-                    'source': node_id,
-                    'target': target_id,
-                    'source_label': node_name,
-                    'target_label': source,
-                    'sourceHandle': f'{target_column}__source',
-                    'targetHandle': f'{column}__target'
-                })
-        return ret
 
     def cte_dependency(self, source: str, columns: []):
-        dbt_node = self.get_dbt_node(source)
-        dbt_catalog = self.get_dbt_catalog(source)
+        dbt_node = self.__get_dbt_node(source)
+        dbt_catalog = self.__get_dbt_catalog(source)
         table_name = dbt_node.get('name')
         materialized = dbt_node.get('config', {}).get('materialized')
         compiled_code = dbt_node.get('compiled_code')
         description = dbt_node.get('description')
         dbt_columns = dbt_catalog.get('columns')
         dbt_depends_on_nodes = dbt_node.get('depends_on', {}).get('nodes', [])
-        dependencies = {}
-        nodes = []
-        edges = []
-        lineage_tables = []
-        lineage_columns = []
-        lineage_table_columns = {}
 
         if compiled_code is None:
             self.logger.info('compiled_code is None')
             return None
-
-        if len(columns) > 0:
-            depends_on_table_info = self.get_depends_on_table_info(dbt_depends_on_nodes)
-            items = self.get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info)
-            self.logger.debug(items)
-
-            for item in items.values():
-                for label in item['labels']:
-                    lineage_tables.append(label.lower())
-                for column in item['columns']:
-                    lineage_columns.append(column.lower())
-
-        try:
-            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
-            ctes = parsed_sql.find_all(exp.CTE)
-        except SqlglotError:
-            self.logger.error(f'parse cte error. source={source}')
-            ctes = []
-
-        for cte in ctes:
-            dependencies[cte.alias_or_name] = []
-
-            nodes.append({
-                'id': cte.alias_or_name,
-                'data': {'label': cte.alias_or_name},
-                'position': {'x': 0, 'y': 0},
-            })
-
-            query = cte.this.sql()
-            try:
-                parsed_cte_query = parse_one(query, dialect=self.dialect)
-                tables = parsed_cte_query.find_all(exp.Table)
-            except SqlglotError:
-                self.logger.error(f'parse cte sql error. source={source}, query={query}')
-                tables = []
-
-            for table in tables:
-                has_db = False
-                if table.db and table.catalog:
-                    if table.name in lineage_tables and len(lineage_columns) > 0:
-                        dc = self.get_dbt_catalog(table.name)
-                        dn = self.get_dbt_node(table.name)
-                        # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
-                        dn_columns = list(dc.get('columns', dn.get('columns', {})).keys())
-
-                        # dbt の定義に該当するカラムだけに絞り込む
-                        filtered_columns = self.get_columns(dn_columns, lineage_columns)
-
-                        lineage_table_columns[table.name] = {'alias': table.alias, 'db': table.db, 'columns': filtered_columns, 'table.is_star': table.is_star}
-                        for filtered_column in filtered_columns:
-                            label = f'{table.name} ({filtered_column})'
-                            nodes.append({
-                                'id': label,
-                                'data': {'label': label, 'db': table.db, 'table': table.name, 'column': filtered_column},
-                                'position': {'x': 0, 'y': 0},
-                                'style': {'background': '#ffccaa'},
-                                'type': 'input'
-                            })
-                            dependencies[cte.alias_or_name].append({'name': label, 'has_db': has_db})
-                    else:
-                        nodes.append({
-                            'id': table.name,
-                            'data': {'label': table.name, 'db': table.db, 'table': table.name},
-                            'position': {'x': 0, 'y': 0},
-                            'style': {'background': '#aaccff'},
-                            'type': 'input'
-                        })
-                    has_db = True
-
-                dependencies[cte.alias_or_name].append({'name': table.name, 'has_db': has_db})
-
-        for node in dependencies:
-            for dependency in dependencies[node]:
-                dep = dependency['name']
-                has_db = dependency['has_db']
-                edge_id = f'{node}-{dep}'
-                if not self.find(edges, 'id', edge_id) and node and dep and node != dep:
-                    edges.append({
-                        'id': edge_id,
-                        'source': dep,
-                        'target': node,
-                        'has_db': has_db,
-                        # 'type': 'smoothstep',
-                    })
-
+        lineage_table_columns = self.__cte_dependency_impl(dbt_depends_on_nodes, compiled_code, source, columns)
         return {
-            'edges': edges,
-            'nodes': nodes,
+            'edges': self.edges,
+            'nodes': self.nodes,
             'table_name': table_name,
             'materialized': materialized,
             'query': compiled_code,
@@ -278,7 +140,7 @@ class DbtSqlglot:
             'lineage_table_columns': lineage_table_columns
         }
 
-    def get_dbt_columns(self, dbt_node):
+    def __get_dbt_columns(self, dbt_node):
         # dbt_manifest_node の columns がない場合は sources の値を元に dbt_manifest_sources から columns を取得する
         dn_columns = list(dbt_node.get('columns', {}).keys())
         if len(dn_columns) == 0:
@@ -290,53 +152,8 @@ class DbtSqlglot:
             dn_columns = ds_columns
         return dn_columns
 
-    def recursive(self, base_source: str, next_source: str, base_column: str, next_columns: [], depth: int) -> None:
-        dbt_catalog = self.get_dbt_catalog(next_source)
-        dbt_node = self.get_dbt_node(next_source)
-        dbt_compiled_code = dbt_node.get('compiled_code')
-        dbt_schema = dbt_node.get('schema')
-        dbt_depends_on_nodes = dbt_node.get('depends_on', {}).get('nodes', [])
-        dbt_columns = list(dbt_catalog.get('columns', dbt_node.get('columns', {})).keys())
 
-        # dbt の定義に該当するカラムだけに絞り込む
-        filtered_columns = self.get_columns(dbt_columns, next_columns)
-
-        # ノード作成
-        self.add_node(next_source, dbt_schema, filtered_columns, depth)
-        # エッジ作成
-        self.add_edge(base_column, filtered_columns, base_source, next_source)
-
-        if dbt_compiled_code is None:
-            self.logger.info('dbt_compiled_code is None')
-            after_next_sources_columns_dict = {}
-        else:
-            # リネージの手がかりとして依存テーブルのカラムやテーブル情報を作成
-            additional_dbt_sources = self.get_depends_on_table_info(dbt_depends_on_nodes)
-
-            after_next_sources_columns_dict = self.get_sqlglot_lineage(next_source, dbt_compiled_code, filtered_columns, additional_dbt_sources)
-
-        depth = depth + 1
-        after_base_source = next_source
-        next_found = False
-        for after_base_column, after_next_sources_columns in after_next_sources_columns_dict.items():
-            after_next_sources = after_next_sources_columns['labels']
-            after_next_columns = after_next_sources_columns['columns']
-            for after_next_source in after_next_sources:
-                next_found = True
-                after_next_source = after_next_source.lower()
-
-                if self.request_depth != -1 and depth > self.request_depth:
-                    continue
-                self.logger.debug(f'base_source={after_base_source}, next_source={after_next_source}, base_column={after_base_column}, next_columns={after_next_columns}, depth={depth}')
-                self.recursive(after_base_source, after_next_source, after_base_column, after_next_columns, depth)
-        if not next_found:
-            # 再起の最後だったらedgeの起点がない
-            prev_node = self.find_with_subkey(self.nodes, 'data', 'name', after_base_source)
-            if prev_node:
-                self.logger.debug(f'last node: {after_base_source}')
-                prev_node['data']['last'] = True
-
-    def get_depends_on_table_info(self, depends_on_nodes: []) -> []:
+    def __get_depends_on_table_info(self, depends_on_nodes: []) -> []:
         res = []
         for depends_on_node in depends_on_nodes:
             # 依存テーブルから manifest.json を検索
@@ -345,7 +162,7 @@ class DbtSqlglot:
                 continue
             # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
             element_columns = element.get('columns', {})
-            columns = self.get_dbt_catalog(element['name']).get('columns', element_columns)
+            columns = self.__get_dbt_catalog(element['name']).get('columns', element_columns)
             res.append({
                 'columns': columns,
                 'table': exp.Table(
@@ -356,12 +173,10 @@ class DbtSqlglot:
             })
         return res
 
-    def add_node(self, next_source, dbt_schema, filtered_columns, depth):
-        node_type = 'eventNode'
-
+    def __add_node(self, next_source, dbt_schema, filtered_columns, dbt_materialized, depth):
         node_columns = list(filtered_columns)
-        node_id = self.str_to_base_10_int_str(next_source)
-        found_node = self.find(self.nodes, 'id', node_id)
+        node_id = self.__str_to_base_10_int_str(next_source)
+        found_node = self.__find(self.nodes, 'id', node_id)
 
         if found_node:
             # すでにノードがあれば columns を増やす
@@ -382,25 +197,27 @@ class DbtSqlglot:
         self.nodes.append({
             'id': node_id,
             'data': {
-                'name': next_source, 'color': 'black', 'label': next_source,
+                'name': next_source,
+                'materialized' : dbt_materialized,
                 'schema': dbt_schema, 'columns': node_columns,
-                'first': len(self.nodes) == 0, 'last': False
+                'first': False, 'last': False,
             },
             'position': {'x': 0,'y': 0},
-            'max_len': max_len, 'depth': depth, 'type': node_type
+            # 'max_len': max_len, 'depth': depth,
+            'type': 'eventNode'
         })
 
-    def add_edge(self, base_column: str, columns: [], base_source: str, source: str):
+    def __add_edge(self, base_column: str, columns: [], base_source: str, source: str):
         if not base_source or len(columns) == 0:
             self.logger.debug(f'{base_source} is None or {columns} len = 0')
             return
-        s = self.str_to_base_10_int_str(base_source)
-        t = self.str_to_base_10_int_str(source.lower())
+        s = self.__str_to_base_10_int_str(base_source)
+        t = self.__str_to_base_10_int_str(source.lower())
         base_edge_id = f'{s}-{t}'
         # if not (self.find(self.edges, 'source', str(s)) and self.find(self.edges, 'target', str(t))):
         for column in columns:
             edge_id = f'{base_edge_id}-{base_column}-{column}'
-            if self.find(self.edges, 'id', edge_id):
+            if self.__find(self.edges, 'id', edge_id):
                 self.logger.debug(f'already exist edge: {edge_id}')
                 continue
             else:
@@ -408,14 +225,12 @@ class DbtSqlglot:
                 self.edges.append({
                     'id': edge_id,
                     'source': str(s),
-                    'source_label': base_source,
-                    'target_label': source.lower(),
+                    'target': str(t),
                     'sourceHandle': f'{base_column}__source',
                     'targetHandle': f'{column}__target',
-                    'target': str(t),
                 })
 
-    def get_parent_node(self, next_source, depth):
+    def __get_parent_node(self, next_source, depth):
         for n in reversed(self.nodes):
             prev_name = n['data']['name']
             if prev_name != next_source and n['depth'] == depth - 1:
@@ -423,7 +238,7 @@ class DbtSqlglot:
                 return n
         return None
 
-    def get_sibling_node(self, next_source, depth):
+    def __get_sibling_node(self, next_source, depth):
         for n in reversed(self.nodes):
             prev_name = n['data']['name']
             if prev_name != next_source and n['depth'] == depth:
@@ -431,7 +246,7 @@ class DbtSqlglot:
                 return n
         return None
 
-    def get_columns(self, dbt_columns: [], next_columns: []) -> []:
+    def __get_columns(self, dbt_columns: [], next_columns: []) -> []:
         if len(dbt_columns) == 0:
             self.logger.error('dbt_columns is empty')
             return next_columns
@@ -446,7 +261,7 @@ class DbtSqlglot:
 
         return ret
 
-    def get_dbt_node(self, dbt_target: str) -> {}:
+    def __get_dbt_node(self, dbt_target: str) -> {}:
         for resource_type in ['model', 'seed', 'snapshot']:
             # FIXME data_cuisine_dbt は metadata から取る
             key = f'{resource_type}.data_cuisine_dbt.{dbt_target}'
@@ -456,7 +271,7 @@ class DbtSqlglot:
                 break
         return element
 
-    def get_dbt_catalog(self, dbt_target: str) -> {}:
+    def __get_dbt_catalog(self, dbt_target: str) -> {}:
         for resource_type in ['model', 'seed', 'snapshot']:
             key = f'{resource_type}.data_cuisine_dbt.{dbt_target}'
             element = self.dbt_catalog_nodes.get(key, {})
@@ -464,7 +279,7 @@ class DbtSqlglot:
                 break
         return element
 
-    def get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: []) -> dict:
+    def __get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: []) -> dict:
         # MappingSchema にテーブル情報を追加
         sqlglot_db_schema = MappingSchema(dialect=self.dialect, normalize=False)
         for s in depends_on_table_info:
@@ -525,22 +340,301 @@ class DbtSqlglot:
         self.logger.info(f'{source}, {ret}')
         return ret
 
-    def str_to_base_10_int_str(self, s:str) -> str:
+    def __str_to_base_10_int_str(self, s:str) -> str:
         hash_value = 0
         for char in s:
             hash_value = (hash_value << 5) - hash_value + ord(char)
             hash_value = hash_value & 0xFFFFFFFF  # Convert to 32-bit integer
         return str(abs(hash_value))
 
-    def find(self, arr: [], key: str, value: str):
+    def __find(self, arr: [], key: str, value: str):
         for x in arr:
             if x[key] == value:
                 return x
 
-    def find_with_subkey(self, arr: [], key: str, subkey: str, value: str):
+    def __find_with_subkey(self, arr: [], key: str, subkey: str, value: str):
         for x in arr:
             if x[key][subkey] == value:
                 return x
 
-    def nodes_edges(self):
-        return {'edges': self.edges, 'nodes': self.nodes}
+    def __get_table_dependencies(self, reverse, unique_id):
+        if reverse:
+            refs = self.dbt_manifest_child_map.get(unique_id, [])
+        else:
+            refs = self.dbt_manifest_parent_map.get(unique_id, [])
+        return refs
+
+    def __table_dependencies_recursive(self, unique_id, reverse, depth):
+        self.logger.info(f'request_depth={self.request_depth}, depth={depth}')
+        ref_dbt_node = self.dbt_manifest_nodes.get(unique_id)
+        if ref_dbt_node is None:
+            self.logger.error(f'unique_id={unique_id} is not found')
+            return False
+        ref_unique_id = ref_dbt_node.get('unique_id')
+        ref_name = ref_dbt_node.get('name')
+        ref_schema = ref_dbt_node.get('schema')
+        ref_materialized = ref_dbt_node.get('config', {}).get('materialized')
+        deps_refs= self.__get_table_dependencies(reverse, ref_unique_id)
+        node_id = self.__str_to_base_10_int_str(ref_name)
+
+        self.nodes.append({
+            'id': node_id,
+            'data': {
+                'name': ref_name,
+                'columns': [],
+                'schema': ref_schema,
+                'materialized': ref_materialized,
+                'first': False, 'last': False
+            },
+            'position': {'x': 0,'y': 0},
+            # 'max_len': max_len,'depth': depth,
+            'type': 'eventNode'
+        })
+
+        depth = depth + 1
+        if self.request_depth != -1 and depth > self.request_depth:
+            self.logger.info(f'depth={depth} reached')
+            return True
+
+        for deps_unique_id in deps_refs:
+            self.logger.info(deps_unique_id)
+            deps_ref_dbt_node = self.dbt_manifest_nodes.get(deps_unique_id)
+            if deps_ref_dbt_node is None:
+                self.logger.error(f'unique_id={deps_unique_id} is not found')
+                return False
+            target_name = deps_ref_dbt_node.get('name')
+            target_node_id = self.__str_to_base_10_int_str(target_name)
+            if reverse:
+                edge_id = f'{target_node_id}-{node_id}'
+                self.edges.append({
+                    'id': edge_id,
+                    'source': target_node_id,
+                    'target': node_id,
+                    'sourceHandle': f'{target_node_id}__source',
+                    'targetHandle': f'{node_id}__target'
+                })
+            else:
+                edge_id = f'{node_id}-{target_node_id}'
+                self.edges.append({
+                    'id': edge_id,
+                    'source': node_id,
+                    'target': target_node_id,
+                    'sourceHandle': f'{node_id}__source',
+                    'targetHandle': f'{target_node_id}__target'
+                })
+            re = self.__table_dependencies_recursive(deps_unique_id, reverse, depth)
+            if not re:
+                return False
+        return True
+
+    def __column_lineage_recursive(self, base_source: str, next_source: str, base_column: str, next_columns: [], depth: int) -> None:
+        dbt_catalog = self.__get_dbt_catalog(next_source)
+        dbt_node = self.__get_dbt_node(next_source)
+        dbt_compiled_code = dbt_node.get('compiled_code')
+        dbt_schema = dbt_node.get('schema')
+        dbt_depends_on_nodes = dbt_node.get('depends_on', {}).get('nodes', [])
+        dbt_columns = list(dbt_catalog.get('columns', dbt_node.get('columns', {})).keys())
+        dbt_materialized = dbt_node.get('config', {}).get('materialized')
+
+        # dbt の定義に該当するカラムだけに絞り込む
+        filtered_columns = self.__get_columns(dbt_columns, next_columns)
+
+        # ノード作成
+        self.__add_node(next_source, dbt_schema, filtered_columns, dbt_materialized, depth)
+        # エッジ作成
+        self.__add_edge(base_column, filtered_columns, base_source, next_source)
+
+        if dbt_compiled_code is None:
+            self.logger.info('dbt_compiled_code is None')
+            after_next_sources_columns_dict = {}
+        else:
+            # リネージの手がかりとして依存テーブルのカラムやテーブル情報を作成
+            additional_dbt_sources = self.__get_depends_on_table_info(dbt_depends_on_nodes)
+
+            after_next_sources_columns_dict = self.__get_sqlglot_lineage(next_source, dbt_compiled_code, filtered_columns, additional_dbt_sources)
+
+        depth = depth + 1
+        after_base_source = next_source
+        next_found = False
+        for after_base_column, after_next_sources_columns in after_next_sources_columns_dict.items():
+            if self.request_depth != -1 and depth > self.request_depth:
+                continue
+            after_next_sources = after_next_sources_columns['labels']
+            after_next_columns = after_next_sources_columns['columns']
+            for after_next_source in after_next_sources:
+                next_found = True
+                after_next_source = after_next_source.lower()
+
+                self.logger.debug(f'base_source={after_base_source}, next_source={after_next_source}, base_column={after_base_column}, next_columns={after_next_columns}, depth={depth}')
+                self.__column_lineage_recursive(after_base_source, after_next_source, after_base_column, after_next_columns, depth)
+        if not next_found:
+            # 再起の最後だったらedgeの起点がない
+            prev_node = self.__find_with_subkey(self.nodes, 'data', 'name', after_base_source)
+            if prev_node and self.request_depth == -1:
+                self.logger.debug(f'last node: {after_base_source}')
+                prev_node['data']['last'] = True
+
+    def __reverse_column_lineage(self, source: str, column: str) -> dict:
+        dbt_node = self.__get_dbt_node(source)
+        unique_id = dbt_node.get('unique_id')
+        refs = self.dbt_manifest_child_map.get(unique_id, [])
+
+        data = {}
+        for ref in refs:
+            ref_dbt_node = self.dbt_manifest_nodes.get(ref)
+            ref_node_name = ref_dbt_node.get('name')
+            ref_schema = ref_dbt_node.get('schema')
+            ref_compiled_code = ref_dbt_node.get('compiled_code')
+            ref_dbt_depends_on_nodes = ref_dbt_node.get('depends_on', {}).get('nodes', [])
+            ref_materialized = ref_dbt_node.get('config', {}).get('materialized')
+
+            depends_on_table_info = self.__get_depends_on_table_info(ref_dbt_depends_on_nodes)
+            found = False
+            for info in depends_on_table_info:
+                tbl : exp.Table = info['table']
+                if tbl.name.lower() == source:
+                    print(tbl.name)
+                    found = True
+            if not found:
+                continue
+
+            # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
+            ref_columns = ref_dbt_node.get('columns', self.__get_dbt_catalog(ref).get('columns', {}))
+            for ref_column in ref_columns:
+                self.logger.info(f'table={ref}, column={ref_column}')
+
+                ref_column_name = ref_column.upper()
+                items = self.__get_sqlglot_lineage(source, ref_compiled_code, [ref_column_name], depends_on_table_info)
+                item_labels_columns = items.get(ref_column_name, {})
+                if column in item_labels_columns.get('columns', []):
+                    item_labels = item_labels_columns['labels']
+                    item_columns = item_labels_columns['columns']
+                    if source.upper() in item_labels and column in item_columns:
+                        self.logger.info(f'source={source}, column={column} found')
+                        r = data.get(ref_node_name, {'columns': [], 'schema': ref_schema, 'materialized': ref_materialized})
+                        r['columns'].append(ref_column_name)
+                        data[ref_node_name] = r
+
+        ret_nodes = []
+        ret_edges = []
+        target_id = self.__str_to_base_10_int_str(source)
+        for node_name, item in data.items():
+            target_schema = item['schema']
+            target_columns = item['columns']
+            target_materialized = item['materialized']
+            node_id = self.__str_to_base_10_int_str(node_name)
+            base_edge_id = f'{node_id}-{target_id}'
+            ret_nodes.append({
+                'id': node_id,
+                'data': {
+                    'name': node_name,
+                    'schema': target_schema,
+                    'columns': target_columns,
+                    'materialized': target_materialized,
+                    'first': False,'last': False
+                },
+                'position': {'x': 0,'y': 0},
+                'type': 'eventNode'
+            })
+            for target_column in target_columns:
+                edge_id = f'{base_edge_id}-{target_column}-{column}'
+                ret_edges.append({
+                    'id': edge_id,
+                    'source': node_id,
+                    'target': target_id,
+                    'sourceHandle': f'{target_column}__source',
+                    'targetHandle': f'{column}__target'
+                })
+        return {'edges': ret_edges, 'nodes': ret_nodes}
+
+    def __cte_dependency_impl(self, dbt_depends_on_nodes: [], compiled_code: str, source: str, columns: []) -> dict:
+        dependencies = {}
+        lineage_tables = []
+        lineage_columns = []
+        lineage_table_columns = {}
+
+        if len(columns) > 0:
+            depends_on_table_info = self.__get_depends_on_table_info(dbt_depends_on_nodes)
+            items = self.__get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info)
+            self.logger.debug(items)
+
+            for item in items.values():
+                for label in item['labels']:
+                    lineage_tables.append(label.lower())
+                for column in item['columns']:
+                    lineage_columns.append(column.lower())
+
+        try:
+            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
+            ctes = parsed_sql.find_all(exp.CTE)
+        except SqlglotError:
+            self.logger.error(f'parse cte error. source={source}')
+            ctes = []
+
+        for cte in ctes:
+            dependencies[cte.alias_or_name] = []
+
+            self.nodes.append({
+                'id': cte.alias_or_name,
+                'data': {'label': cte.alias_or_name},
+                'position': {'x': 0, 'y': 0},
+            })
+
+            query = cte.this.sql()
+            try:
+                parsed_cte_query = parse_one(query, dialect=self.dialect)
+                tables = parsed_cte_query.find_all(exp.Table)
+            except SqlglotError:
+                self.logger.error(f'parse cte sql error. source={source}, query={query}')
+                tables = []
+
+            for table in tables:
+                has_db = False
+                if table.db and table.catalog:
+                    if table.name in lineage_tables and len(lineage_columns) > 0:
+                        dc = self.__get_dbt_catalog(table.name)
+                        dn = self.__get_dbt_node(table.name)
+                        # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
+                        dn_columns = list(dc.get('columns', dn.get('columns', {})).keys())
+
+                        # dbt の定義に該当するカラムだけに絞り込む
+                        filtered_columns = self.__get_columns(dn_columns, lineage_columns)
+
+                        lineage_table_columns[table.name] = {'alias': table.alias, 'db': table.db, 'columns': filtered_columns, 'table.is_star': table.is_star}
+                        for filtered_column in filtered_columns:
+                            label = f'{table.name} ({filtered_column})'
+                            self.nodes.append({
+                                'id': label,
+                                'data': {'label': label, 'db': table.db, 'table': table.name, 'column': filtered_column},
+                                'position': {'x': 0, 'y': 0},
+                                'style': {'background': '#ffccaa'},
+                                'type': 'input'
+                            })
+                            dependencies[cte.alias_or_name].append({'name': label, 'has_db': has_db})
+                    else:
+                        self.nodes.append({
+                            'id': table.name,
+                            'data': {'label': table.name, 'db': table.db, 'table': table.name},
+                            'position': {'x': 0, 'y': 0},
+                            'style': {'background': '#aaccff'},
+                            'type': 'input'
+                        })
+                    has_db = True
+
+                dependencies[cte.alias_or_name].append({'name': table.name, 'has_db': has_db})
+
+        for node in dependencies:
+            for dependency in dependencies[node]:
+                dep = dependency['name']
+                has_db = dependency['has_db']
+                edge_id = f'{node}-{dep}'
+                if not self.__find(self.edges, 'id', edge_id) and node and dep and node != dep:
+                    self.edges.append({
+                        'id': edge_id,
+                        'source': dep,
+                        'target': node,
+                        'has_db': has_db,
+                        # 'type': 'smoothstep',
+                    })
+        return lineage_table_columns
+

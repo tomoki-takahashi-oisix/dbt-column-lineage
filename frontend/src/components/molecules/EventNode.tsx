@@ -1,27 +1,30 @@
 'use client'
-import { NodeDataType } from '@/components/pages/Cl'
-import { Handle, NodeProps, Position, useUpdateNodeInternals } from 'reactflow'
-import Node, { contentStyle as style, contentStyleIo, contentStyleTextLeft } from './Node'
-import { useStore as useStoreZustand } from '@/store/zustand'
 import React, { useCallback } from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faAnglesRight } from '@fortawesome/free-solid-svg-icons'
+import { NodeProps, Position, useReactFlow } from 'reactflow'
+import { useStore as useStoreZustand } from '@/store/zustand'
+import { NodeDataType } from '@/components/pages/Cl'
+import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
+import EventNodeHandle from '@/components/molecules/EventNodeHandle'
+import EventNodeFrame from '@/components/molecules/EventNodeFrame'
+import EventNodeColumns from '@/components/molecules/EventNodeColumns'
+import TableNodeHandle from '@/components/molecules/TableNodeHandle'
 
 export interface EventNodeProps extends NodeProps {
   data: NodeDataType
-  addReverseLineage?: Function
+  setNodesPositioned?: (positioned: boolean) => void
 }
 
-export const EventNode = ({ data, id, selected, addReverseLineage }: EventNodeProps) => {
+export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNodesPositioned }) => {
+  const { getNode, setNodes, setEdges } = useReactFlow()
+  const { addSingleLineage, addReverseLineage, getDescendantNodes, lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id, setNodesPositioned)
+
   const options = useStoreZustand((state) => state.options)
-  const setLoading = useStoreZustand((state) => state.setLoading)
+  const showColumn = useStoreZustand((state) => state.showColumn)
 
-  const updateNodeInternals = useUpdateNodeInternals()
-
-  const goToCte = useCallback((e:React.MouseEvent, rawColumn: string) => {
+  // カラム名押下時にCTE画面に遷移する
+  const handleClickColumnName = useCallback((e: React.MouseEvent, rawColumn: string) => {
     e.stopPropagation()
-    const schema = data.schema
-    const source = data.name
+    const { schema, name: source } = data
     const column = rawColumn.toLowerCase()
     const params = new URLSearchParams({schema, source, column })
 
@@ -29,65 +32,122 @@ export const EventNode = ({ data, id, selected, addReverseLineage }: EventNodePr
     window.open(`/cte?${params.toString()}`, '_blank')
   }, [data])
 
-  const handleConnectClicked = useCallback(async(e:React.MouseEvent, id:string, source:string, column:string) => {
-    e.stopPropagation()
+  // (+)ハンドル押下時にリネージを追加する
+  const handlePlusClickEventNodeHandle = useCallback(async (column: string, handleType: 'source' | 'target') => {
+    if (handleType === 'target') {
+      await addReverseLineage(id, data.name, column)
+    } else if (handleType === 'source') {
+      await addSingleLineage(data.name, column)
+    }
+  }, [addReverseLineage, addSingleLineage, id, data.name])
 
-    setLoading(true)
-    const query = new URLSearchParams({source, column})
-    const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
-    const response = await fetch(`${hostName}/api/v1/reverse_lineage?${query}`)
-    const props = await response.json()
-    // console.log(props)
-    if (addReverseLineage) addReverseLineage({updateNodeInternals, props, id, source, column})
-    setLoading(false)
-  }, [data])
+  // (-)ハンドル押下時に子孫ノードごと削除する
+  const handleMinusClickEventNodeHandle = useCallback((column: string) => {
+    const currentNode = getNode(id)
+    if (!currentNode) return
 
-  return (
-    <Node
-      label={data.name}
+    let nodesToDelete: string[] = []
+    nodesToDelete = getDescendantNodes(id, column)
+
+    setNodes(nodes => nodes.filter(n => !nodesToDelete.includes(n.id)))
+    setEdges(edges => edges.filter(edge =>
+      !(edge.source === id && edge.sourceHandle === `${column}__source`) &&
+      !nodesToDelete.includes(edge.target)
+    ))
+  }, [getNode, setNodes, setEdges, id, getDescendantNodes])
+
+  // table モードの描画
+  const renderTableNode = () => (
+    <EventNodeFrame
+      tableName={data.name}
       selected={selected}
-      color={'Lavender'}
+      color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
       content={
         <>
-          {data.columns.map((column) => (
-            <div
-              className="flex"
-              key={'i-' + column}
-              style={{ ...contentStyleIo, ...contentStyleTextLeft }}>
-              <p
-                className="cursor-pointer hover:underline"
-                onClick={(e) => {goToCte(e, column)}}>
-                {column}
-              </p>
-            {
-              !data.last &&
-              <Handle
-                type="source"
-                position={options.rankdir == 'LR' ? Position.Right : Position.Left}
-                id={column + '__source'}
-                style={{ ...style.handle, ...(options.rankdir == 'LR' ? style.right: style.left) }}
-              />
-            }
-            {
-              (!data.first || (data?.opened && data.opened.includes(column) )) ?
-              <Handle
-                type="target"
-                position={options.rankdir == 'LR' ? Position.Left : Position.Right}
-                id={column + '__target'}
-                style={{ ...style.handle, ...(options.rankdir == 'LR' ? style.left: style.right) }}
-              />
-              :
-              <p className='ml-auto'>
-                <FontAwesomeIcon
-                  onClick={(e) => handleConnectClicked(e, id, data.name, column)}
-                  className="cursor-pointer mx-1 fa-sm"
-                  icon={faAnglesRight} />
-              </p>
-            }
-          </div>
-        ))}
-      </>
+          {( firstNodeTable != data.name) && (
+          <TableNodeHandle
+            type="source"
+            position={Position.Left}
+            id={`${id}__source`}
+            isConnectable={true}
+            nodeId={id}
+            onConnect={() => handlePlusClickEventNodeHandle('', 'source')}
+            onDelete={handleMinusClickEventNodeHandle}
+          />
+          )}
+          {( lastNodeTable != data.name) && (
+          <TableNodeHandle
+            type="target"
+            position={Position.Right}
+            id={`${id}__target`}
+            isConnectable={true}
+            nodeId={id}
+            onConnect={() => handlePlusClickEventNodeHandle('', 'target')}
+            onDelete={handleMinusClickEventNodeHandle}
+          />
+          )}
+        </>
       }
     />
   )
+
+  // column モードの描画
+  const renderColumnNode = () => (
+    <EventNodeFrame
+      tableName={data.name}
+      selected={selected}
+      color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
+      content={
+        <div className="py-2 px-0">
+          {data.columns.map((column) => (
+            <div
+              className="flex items-center relative"
+              key={'i-' + column}
+              style={{
+                position: 'relative', padding: '8px 16px',
+                flexGrow: 1, textAlign: 'left', paddingRight: '24px', paddingLeft: '24px',
+              }}
+            >
+              <p
+                className="cursor-pointer hover:underline flex-grow"
+                onClick={(e) => handleClickColumnName(e, column)}
+              >
+                {column}
+              </p>
+              {( !data.last && !firstNodeColumns.includes(column)) && (
+                <EventNodeHandle
+                  type="source"
+                  position={options.rankdir === 'LR' ? Position.Right : Position.Left}
+                  id={`${column}__source`}
+                  isConnectable={true}
+                  nodeId={id}
+                  onDelete={() => handleMinusClickEventNodeHandle(column)}
+                  onConnect={() => handlePlusClickEventNodeHandle(column, 'source')}
+                />
+              )}
+              {( !data.first && !lastNodeColumns.includes(column)) && (
+                <EventNodeHandle
+                  type="target"
+                  position={options.rankdir === 'LR' ? Position.Left : Position.Right}
+                  id={`${column}__target`}
+                  isConnectable={true}
+                  nodeId={id}
+                  onDelete={() => handleMinusClickEventNodeHandle(column)}
+                  onConnect={() => handlePlusClickEventNodeHandle(column, 'target')}
+                />
+              )}
+            </div>
+          ))}
+          <EventNodeColumns
+            schema={data.schema}
+            tableName={data.name}
+            nodeColumns={data.columns}
+            handlePlusClickEventNodeHandle={handlePlusClickEventNodeHandle}
+          />
+        </div>
+      }
+    />
+  )
+
+  return showColumn ? renderColumnNode() : renderTableNode()
 }
