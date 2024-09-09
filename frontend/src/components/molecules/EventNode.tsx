@@ -16,7 +16,7 @@ export interface EventNodeProps extends NodeProps {
 
 export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNodesPositioned }) => {
   const { getNode, setNodes, setEdges } = useReactFlow()
-  const { addSingleLineage, addReverseLineage, getDescendantNodes, lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id, setNodesPositioned)
+  const { addSingleLineage, addReverseLineage, hideNode, getDescendantNodes, lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id, setNodesPositioned)
 
   const options = useStoreZustand((state) => state.options)
   const showColumn = useStoreZustand((state) => state.showColumn)
@@ -62,29 +62,30 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNod
       tableName={data.name}
       selected={selected}
       color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
+      hideNode={hideNode}
       content={
         <>
-          {( firstNodeTable != data.name) && (
-          <TableNodeHandle
-            type="source"
-            position={Position.Left}
-            id={`${id}__source`}
-            isConnectable={true}
-            nodeId={id}
-            onConnect={() => handlePlusClickEventNodeHandle('', 'source')}
-            onDelete={handleMinusClickEventNodeHandle}
-          />
+          {(firstNodeTable != data.name) && (
+            <TableNodeHandle
+              type="source"
+              position={Position.Left}
+              id={`${id}__source`}
+              isConnectable={true}
+              nodeId={id}
+              onConnect={() => handlePlusClickEventNodeHandle('', 'source')}
+              onDelete={handleMinusClickEventNodeHandle}
+            />
           )}
-          {( lastNodeTable != data.name) && (
-          <TableNodeHandle
-            type="target"
-            position={Position.Right}
-            id={`${id}__target`}
-            isConnectable={true}
-            nodeId={id}
-            onConnect={() => handlePlusClickEventNodeHandle('', 'target')}
-            onDelete={handleMinusClickEventNodeHandle}
-          />
+          {(lastNodeTable != data.name) && (
+            <TableNodeHandle
+              type="target"
+              position={Position.Right}
+              id={`${id}__target`}
+              isConnectable={true}
+              nodeId={id}
+              onConnect={() => handlePlusClickEventNodeHandle('', 'target')}
+              onDelete={handleMinusClickEventNodeHandle}
+            />
           )}
         </>
       }
@@ -97,6 +98,7 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNod
       tableName={data.name}
       selected={selected}
       color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
+      hideNode={hideNode}
       content={
         <div className="py-2 px-0">
           {data.columns.map((column) => (

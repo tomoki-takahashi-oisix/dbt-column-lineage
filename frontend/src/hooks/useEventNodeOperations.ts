@@ -111,6 +111,21 @@ export const useEventNodeOperations = (id: string, setNodesPositioned?: (positio
       setTimeout(() => setNodesPositioned(false), 100)
   }, [getNodes, getEdges, showColumn])
 
+  // ノードを非表示にする
+  const hideNode = useCallback(() => {
+    const nodeIdsToHide = [id]
+
+    setNodes((nodes) => nodes.filter((node) => !nodeIdsToHide.includes(node.id)))
+
+    setEdges((edges) => edges.filter((edge) =>
+      !nodeIdsToHide.includes(edge.source) && !nodeIdsToHide.includes(edge.target)
+    ))
+
+    if (setNodesPositioned) {
+      setTimeout(() => setNodesPositioned(false), 100)
+    }
+  }, [id, setNodes, setEdges, setNodesPositioned])
+
   // 子孫ノードを取得する(column用)
   const getDescendantNodes = useCallback((nodeId: string, columnId: string): string[] => {
     let childEdges: Edge[] = []
@@ -134,6 +149,7 @@ export const useEventNodeOperations = (id: string, setNodesPositioned?: (positio
   return {
     addReverseLineage,
     addSingleLineage,
+    hideNode,
     getDescendantNodes,
     lastNodeColumns,
     lastNodeTable,
