@@ -16,7 +16,7 @@ export interface EventNodeProps extends NodeProps {
 
 export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNodesPositioned }) => {
   const { getNode, setNodes, setEdges } = useReactFlow()
-  const { addSingleLineage, addReverseLineage, hideNode, getDescendantNodes, lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id, setNodesPositioned)
+  const { addSingleLineage, addReverseLineage, hideNode, getDescendantNodes, hideColumnAndRelatedEdges, lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id, setNodesPositioned)
 
   const options = useStoreZustand((state) => state.options)
   const showColumn = useStoreZustand((state) => state.showColumn)
@@ -41,19 +41,22 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNod
     }
   }, [addReverseLineage, addSingleLineage, id, data.name])
 
-  // (-)ハンドル押下時に子孫ノードごと削除する
+  // (-)ハンドル押下時に関連するノードを削除する
   const handleMinusClickEventNodeHandle = useCallback((column: string) => {
     const currentNode = getNode(id)
     if (!currentNode) return
+    if (showColumn) {
+      hideColumnAndRelatedEdges(id, column)
+    } else {
+      let nodesToDelete: string[] = []
+      nodesToDelete = getDescendantNodes(id)
 
-    let nodesToDelete: string[] = []
-    nodesToDelete = getDescendantNodes(id, column)
-
-    setNodes(nodes => nodes.filter(n => !nodesToDelete.includes(n.id)))
-    setEdges(edges => edges.filter(edge =>
-      !(edge.source === id && edge.sourceHandle === `${column}__source`) &&
-      !nodesToDelete.includes(edge.target)
-    ))
+      setNodes(nodes => nodes.filter(n => !nodesToDelete.includes(n.id)))
+      setEdges(edges => edges.filter(edge =>
+        !(edge.source === id && edge.sourceHandle === `${column}__source`) &&
+        !nodesToDelete.includes(edge.target)
+      ))
+    }
   }, [getNode, setNodes, setEdges, id, getDescendantNodes])
 
   // table モードの描画

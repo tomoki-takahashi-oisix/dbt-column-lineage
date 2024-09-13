@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Node, Edge, useReactFlow, useUpdateNodeInternals } from 'reactflow'
+import { Node, Edge, useReactFlow, useUpdateNodeInternals, useStore } from 'reactflow'
 import { useStore as useStoreZustand } from '@/store/zustand'
 
 export const useEventNodeOperations = (id: string, setNodesPositioned?: (positioned: boolean) => void) => {
@@ -76,15 +76,15 @@ export const useEventNodeOperations = (id: string, setNodesPositioned?: (positio
     setNodes(mergedNodes)
     setEdges(mergedEdges)
 
-    updateNodeInternals(id)
+    // updateNodeInternals(id)
     if (setNodesPositioned)
       setTimeout(() => setNodesPositioned(false), 100)
-  }, [getNodes, getEdges, showColumn])
+  }, [getNodes, getEdges, showColumn, updateNodeInternals])
 
   // シングルリネージしてノードを追加する
-  const addSingleLineage = useCallback(async (source: string, column:string) => {
+  const addSingleLineage = useCallback(async (source: string, column: string) => {
     setLoading(true)
-    const query = new URLSearchParams({source, column, depth: '1', show_column: showColumn.toString()})
+    const query = new URLSearchParams({ source, column, depth: '1', show_column: showColumn.toString() })
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -105,11 +105,12 @@ export const useEventNodeOperations = (id: string, setNodesPositioned?: (positio
     const mergedEdges = mergeEdges(getEdges(), data['edges'])
     setNodes(mergedNodes)
     setEdges(mergedEdges)
-    updateNodeInternals(id)
+    // updateNodeInternals(id)
 
-    if (setNodesPositioned)
+    if (setNodesPositioned) {
       setTimeout(() => setNodesPositioned(false), 100)
-  }, [getNodes, getEdges, showColumn])
+    }
+  }, [getNodes, getEdges, showColumn, updateNodeInternals])
 
   // ノードを非表示にする
   const hideNode = useCallback(() => {
@@ -126,31 +127,109 @@ export const useEventNodeOperations = (id: string, setNodesPositioned?: (positio
     }
   }, [id, setNodes, setEdges, setNodesPositioned])
 
-  // 子孫ノードを取得する(column用)
-  const getDescendantNodes = useCallback((nodeId: string, columnId: string): string[] => {
-    let childEdges: Edge[] = []
-    if (showColumn) {
-      childEdges = getEdges().filter(
-        edge => edge.source === nodeId && edge.sourceHandle === `${columnId}__source`
-      )
-    } else {
-      childEdges = getEdges().filter(
-        edge => edge.source === nodeId
-      )
-    }
-
+  // 子孫ノードを取得する
+  const getDescendantNodes = useCallback((nodeId: string): string[] => {
+    const childEdges = getEdges().filter(edge => edge.source === nodeId)
     const childNodeIds = childEdges.map(edge => edge.target)
-    const descendantNodeIds = childNodeIds.flatMap(
-      childId => getDescendantNodes(childId, columnId)
-    )
+
+    const descendantNodeIds = childNodeIds.flatMap(childId => getDescendantNodes(childId))
     return [...childNodeIds, ...descendantNodeIds]
   }, [getEdges])
+
+  // 特定のカラムと関連するエッジを削除
+  const hideColumnAndRelatedEdges = useCallback((nodeId: string, columnId: string) => {
+    // 対象ノードとその子孫ノードを取得
+    const descendantNodeIds = getDescendantNodes(nodeId)
+    const affectedNodeIds = [nodeId, ...descendantNodeIds]
+
+    // カラム削除のマッピングを作成
+    const columnMappings = new Map<string, Set<string>>()
+    columnMappings.set(nodeId, new Set())  // クリックしたノードのカラムは削除しない
+
+    // 全てのエッジを処理してカラムのマッピングを更新
+    getEdges().forEach(edge => {
+      // エッジの送信元と送信先が影響を受けるノードに含まれているか確認
+      if (affectedNodeIds.includes(edge.source) && affectedNodeIds.includes(edge.target)) {
+        const sourceColumns = columnMappings.get(edge.source) || new Set()
+        const targetColumns = columnMappings.get(edge.target) || new Set()
+
+        // エッジのハンドル（列）を取得
+        const sourceColumn = edge.sourceHandle?.split('__')[0] || ''
+        const targetColumn = edge.targetHandle?.split('__')[0] || ''
+
+        // 列マッピングの更新条件をチェック
+        const isClickedNodeEdge = edge.source === nodeId && sourceColumn === columnId
+        const isSourceColumnRemoved = sourceColumns.has(sourceColumn)
+
+        // 条件に合致する場合、送信先の列を更新
+        if (isClickedNodeEdge || isSourceColumnRemoved) {
+          targetColumns.add(targetColumn)
+          columnMappings.set(edge.target, targetColumns)
+        }
+      }
+    })
+
+    setNodes((nodes: Node[]) => {
+      // 個々のノードを更新する関数
+      const updateNode = (node: Node): Node => {
+        // 影響を受けないノードはそのまま返す
+        if (!affectedNodeIds.includes(node.id)) {
+          return node
+        }
+
+        // 削除すべきカラムを取得
+        const columnsToRemove = columnMappings.get(node.id) || new Set<string>()
+        // 削除すべきカラムを除外した新しいカラムリストを作成
+        const updatedColumns = node.data.columns.filter((col: string) => !columnsToRemove.has(col))
+
+        // 更新されたノードを返す
+        return {
+          ...node,
+          data: { ...node.data, columns: updatedColumns }
+        }
+      }
+
+      // すべてのノードを更新
+      const updatedNodes = nodes.map(updateNode)
+
+      // カラムが0個になり、かつクリックされたノードでないノードを除外
+      return updatedNodes.filter(node =>
+        node.id === nodeId || node.data.columns.length > 0
+      )
+    })
+
+    // 対象のカラムに関連するエッジを削除
+    setEdges(edges => edges.filter(edge => {
+      // エッジの送信元と送信先の列マッピングを取得
+      const sourceColumns = columnMappings.get(edge.source) || new Set()
+      const targetColumns = columnMappings.get(edge.target) || new Set()
+
+      // エッジの送信元と送信先のカラムを取得
+      const sourceColumn = edge.sourceHandle?.split('__')[0] || ''
+      const targetColumn = edge.targetHandle?.split('__')[0] || ''
+
+      // エッジの送信元または送信先が影響を受けるノードに含まれていない場合、エッジを保持
+      const isNotAffectedEdge = !affectedNodeIds.includes(edge.source) || !affectedNodeIds.includes(edge.target)
+      // エッジの送信元がクリックされたノードでない、または送信元のカラムが削除対象のカラムでない場合
+      const isNotClickedNodeSource = edge.source !== nodeId || sourceColumn !== columnId
+      // エッジの送信元・送信先のカラムが削除対象に含まれていない場合
+      const isSourceColumnRetained = !sourceColumns.has(sourceColumn)
+      const isTargetColumnRetained = !targetColumns.has(targetColumn)
+
+      return isNotAffectedEdge || (isNotClickedNodeSource && isSourceColumnRetained) || isTargetColumnRetained
+    }))
+
+    if (setNodesPositioned) {
+      setTimeout(() => setNodesPositioned(false), 100)
+    }
+  }, [showColumn, setNodes, setEdges, getDescendantNodes, getEdges, setNodesPositioned])
 
   return {
     addReverseLineage,
     addSingleLineage,
     hideNode,
     getDescendantNodes,
+    hideColumnAndRelatedEdges,
     lastNodeColumns,
     lastNodeTable,
     firstNodeColumns,
