@@ -75,46 +75,46 @@ export const Header = ({handleFetchData}: HeaderProps) => {
     }
   }, [schema, source])
 
-  const submit = useCallback(() => {
-    const query = new URLSearchParams({ schema, source, column, show_column: showColumn.toString() })
-    router.push(`${pathname}?${query}`)
+  const submit = useCallback(async (routeChange=false) => {
+    let params: any
+
+    if (!routeChange) {
+      params = { schema, source, column }
+      const query = new URLSearchParams({...params, show_column: showColumn.toString()})
+      // console.log(query.toString())
+      router.push(`${pathname}?${query}`)
+      params.showColumn =  showColumn.toString()
+    } else {
+      const qSchema = searchParams.get('schema') as string
+      const qSource = searchParams.get('source') as string
+      const qColumn = searchParams.get('column') as string
+      const qShowColumn = searchParams.get('show_column') as string
+      params = { schema: qSchema, source: qSource, column: qColumn, showColumn: qShowColumn }
+      // schema や source が変化した場合(=/cte の codejump のときやリロード時)には、それに合わせてプルダウンを変更する
+      handleFetchSchemasData()
+      await changeSchema(qSchema, false)
+      await changeSource(qSchema, qSource, false)
+      if (qColumn) setColumn(qColumn)
+      if(qShowColumn) setShowColumn(qShowColumn == 'true')
+    }
+    setLoading(true)
+    await handleFetchData(params)
+    setLoading(false)
   }, [pathname, schema, source, column, showColumn])
 
-  const routeChange = useCallback(async () => {
-    // console.log('routeChange')
-    const qSchema = searchParams.get('schema')
-    const qSource = searchParams.get('source')
-    const qColumn = searchParams.get('column')
-    const qDepth = searchParams.get('depth')
-    const qShowColumn = searchParams.get('show_column')
-    const params = { schema: qSchema, source: qSource, column: qColumn, depth: qDepth, showColumn: qShowColumn }
-    if (qSchema && qSource) {
-      setLoading(true)
-      const re = await handleFetchData(params)
-      setLoading(false)
-      if (re) {
-        // schema や source が変化した場合(=/cte の codejump のときやリロード時)には、それに合わせてプルダウンを変更する
-        handleFetchSchemasData()
-        if (params.schema != schema) await changeSchema(params.schema as string, false)
-        if (params.source != source) await changeSource(params.schema as string, params.source as string, false)
-        if (params.column && params.column != column) setColumn(params.column as string)
-        if (params.showColumn) setShowColumn(params.showColumn == 'true')
-      }
-    }
-  }, [pathname, searchParams])
-
   useEffect(() => {
-    if (searchParams.size && (searchParams.get('schema') != schema && searchParams.get('source') != source)) return
-    console.log('init')
-    handleFetchSchemasData()
-    handleFetchSourcesData(schema)
-    handleFetchColumnsData(schema, source)
+    if (searchParams.size) {
+      // クエリパラメータがある場合はその値でデータ取得しつつ、フォームに値をセットする
+      submit(true)
+    } else {
+      // クエリパラメータがない場合は初期値
+      handleFetchSchemasData()
+      handleFetchSourcesData(schema)
+      handleFetchColumnsData(schema, source)
+    }
+    if (pathname != lineageMode) setLineageMode(pathname)
   }, [])
 
-  useEffect(() => {
-    routeChange()
-    if (pathname != lineageMode) setLineageMode(pathname)
-  }, [pathname, searchParams])
 
   return (
     <header className="bg-white border-b-[1px]">

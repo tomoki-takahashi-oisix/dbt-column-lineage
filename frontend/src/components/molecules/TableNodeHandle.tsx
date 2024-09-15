@@ -11,8 +11,8 @@ interface TableNodeHandleProps {
   id: string
   isConnectable: boolean
   nodeId: string
-  onConnect: () => void
-  onDelete: Function
+  onConnect?: Function
+  onDelete?: Function
 }
 
 const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, isConnectable, nodeId, onConnect, onDelete, }) => {
@@ -29,16 +29,16 @@ const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, i
   const handleClick = (event: React.MouseEvent) => {
     if (loading) return
     event.stopPropagation()
-    if (type === 'source' && isConnected) {
+    if (type === 'source' && isConnected && onDelete) {
       onDelete()
-    } else if (!isConnected) {
+    } else if (!isConnected && onConnect) {
       onConnect()
     }
   }
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '50%',
+    top: '16px',
     transform: 'translateY(-50%)',
     ...(position === Position.Left
       ? { left: '-2px' }
@@ -61,7 +61,7 @@ const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, i
           border: 'none',
         }}
       />
-      <button
+      { onDelete && <button
         className="w-6 h-6 flex items-center justify-center bg-white rounded-full border border-gray-300 hover:bg-gray-100 focus:outline-none"
         style={{
           position: 'absolute',
@@ -73,12 +73,12 @@ const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, i
         }}
         onClick={handleClick}
       >
-        {type === 'source' && isConnected ? (
+        { (type === 'source' && isConnected && onDelete) ? (
           <FontAwesomeIcon
             icon={faMinus}
             className="text-gray-600"
           />
-        ) : !isConnected ? (
+        ) : (!isConnected && onConnect) ? (
           <FontAwesomeIcon
             icon={loading ? faSpinner : faPlus}
             spinPulse={loading}
@@ -87,7 +87,7 @@ const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, i
         ) : (
           <span className="w-4 h-4"></span>
         )}
-      </button>
+      </button>}
     </div>
   )
 }

@@ -369,7 +369,7 @@ class DbtSqlglot:
         ref_dbt_node = self.dbt_manifest_nodes.get(unique_id)
         if ref_dbt_node is None:
             self.logger.error(f'unique_id={unique_id} is not found')
-            return False
+            return
         ref_unique_id = ref_dbt_node.get('unique_id')
         ref_name = ref_dbt_node.get('name')
         ref_schema = ref_dbt_node.get('schema')
@@ -377,55 +377,57 @@ class DbtSqlglot:
         deps_refs= self.__get_table_dependencies(reverse, ref_unique_id)
         node_id = self.__str_to_base_10_int_str(ref_name)
 
-        self.nodes.append({
-            'id': node_id,
-            'data': {
-                'name': ref_name,
-                'columns': [],
-                'schema': ref_schema,
-                'materialized': ref_materialized,
-                'first': False, 'last': False
-            },
-            'position': {'x': 0,'y': 0},
-            # 'max_len': max_len,'depth': depth,
-            'type': 'eventNode'
-        })
+        if not self.__find(self.nodes, 'id', node_id):
+            self.nodes.append({
+                'id': node_id,
+                'data': {
+                    'name': ref_name,
+                    'columns': [],
+                    'schema': ref_schema,
+                    'materialized': ref_materialized,
+                    'first': False, 'last': False
+                },
+                'position': {'x': 0,'y': 0},
+                # 'max_len': max_len,'depth': depth,
+                'type': 'eventNode'
+            })
 
         depth = depth + 1
         if self.request_depth != -1 and depth > self.request_depth:
             self.logger.info(f'depth={depth} reached')
-            return True
+            return
 
         for deps_unique_id in deps_refs:
             self.logger.info(deps_unique_id)
             deps_ref_dbt_node = self.dbt_manifest_nodes.get(deps_unique_id)
             if deps_ref_dbt_node is None:
                 self.logger.error(f'unique_id={deps_unique_id} is not found')
-                return False
+                return
             target_name = deps_ref_dbt_node.get('name')
             target_node_id = self.__str_to_base_10_int_str(target_name)
             if reverse:
                 edge_id = f'{target_node_id}-{node_id}'
-                self.edges.append({
-                    'id': edge_id,
-                    'source': target_node_id,
-                    'target': node_id,
-                    'sourceHandle': f'{target_node_id}__source',
-                    'targetHandle': f'{node_id}__target'
-                })
+                if not self.__find(self.edges, 'id', edge_id):
+                    self.edges.append({
+                        'id': edge_id,
+                        'source': target_node_id,
+                        'target': node_id,
+                        'sourceHandle': f'{target_node_id}__source',
+                        'targetHandle': f'{node_id}__target'
+                    })
             else:
                 edge_id = f'{node_id}-{target_node_id}'
-                self.edges.append({
-                    'id': edge_id,
-                    'source': node_id,
-                    'target': target_node_id,
-                    'sourceHandle': f'{node_id}__source',
-                    'targetHandle': f'{target_node_id}__target'
-                })
-            re = self.__table_dependencies_recursive(deps_unique_id, reverse, depth)
-            if not re:
-                return False
-        return True
+                if not self.__find(self.edges, 'id', edge_id):
+                    self.edges.append({
+                        'id': edge_id,
+                        'source': node_id,
+                        'target': target_node_id,
+                        'sourceHandle': f'{node_id}__source',
+                        'targetHandle': f'{target_node_id}__target'
+                    })
+            self.__table_dependencies_recursive(deps_unique_id, reverse, depth)
+        self.logger.info(f'end')
+        return
 
     def __column_lineage_recursive(self, base_source: str, next_source: str, base_column: str, next_columns: [], depth: int) -> None:
         dbt_catalog = self.__get_dbt_catalog(next_source)

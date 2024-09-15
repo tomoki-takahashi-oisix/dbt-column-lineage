@@ -33,9 +33,6 @@ export type NodeDataType = {
   columns: string[]
   first: boolean
   last: boolean
-  // opened?: string[]
-  // forceToolbarVisible?: boolean
-  // toolbarPosition?: Position
 }
 
 interface QueryParams {
@@ -54,14 +51,14 @@ export const Cl = () => {
   const sidebarActive = useStoreZustand((state) => state.sidebarActive)
   const options = useStoreZustand((state) => state.options)
   const setOptions = useStoreZustand((state) => state.setOptions)
+  const clearNodePosition = useStoreZustand((state) => state.clearNodePosition)
+  const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
+
   const searchParams = useSearchParams()
 
   const handleFetchData = useCallback(async ({ source, column, showColumn }: QueryParams) => {
-    if (nodes.length != 0) {
-      setNodes([])
-      setEdges([])
-      // await new Promise(resolve => setTimeout(resolve, 1000))
-    }
+    setNodes([])
+    setEdges([])
 
     const query = new URLSearchParams({source, column, show_column: showColumn})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
@@ -97,6 +94,15 @@ export const Cl = () => {
     (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
     [setEdges],
   )
+
+  // 外部から setRefreshNodesPosition が呼ばれた場合
+  useEffect(() => {
+    if (clearNodePosition) {
+      // console.log('clearNodePosition')
+      setClearNodePosition(false)
+      setTimeout(()=>setNodesPositioned(false), 100)
+    }
+  }, [clearNodePosition])
 
   useEffect(() => {
     setNodesPositioned(false)

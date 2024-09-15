@@ -323,11 +323,9 @@ export const Cte = () => {
   const router = useRouter()
 
   const handleFetchData = useCallback(async ({source, column}: {source: string, column: string}) => {
-    if (nodes.length != 0) {
-      setNodes([])
-      setEdges([])
-      // await new Promise(resolve => setTimeout(resolve, 1000))
-    }
+    setNodes([])
+    setEdges([])
+
     const query = new URLSearchParams({source, column})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/cte?${query}`)
@@ -337,7 +335,6 @@ export const Cte = () => {
       router.back()
       return false
     }
-    console.log(data)
     setNodes(data['nodes'])
     setEdges(data['edges'])
 

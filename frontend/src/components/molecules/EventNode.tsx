@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback } from 'react'
-import { NodeProps, Position, useReactFlow } from 'reactflow'
+import { NodeProps, Position } from 'reactflow'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { NodeDataType } from '@/components/pages/Cl'
 import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
@@ -15,8 +15,9 @@ export interface EventNodeProps extends NodeProps {
 }
 
 export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNodesPositioned }) => {
-  const { getNode, setNodes, setEdges } = useReactFlow()
-  const { addSingleLineage, addReverseLineage, hideNode, getDescendantNodes, hideColumnAndRelatedEdges, lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id, setNodesPositioned)
+  const { addSingleLineage, addReverseLineage, hideNode,
+    hideTableAndRelatedEdges, hideColumnAndRelatedEdges,
+    lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id)
 
   const options = useStoreZustand((state) => state.options)
   const showColumn = useStoreZustand((state) => state.showColumn)
@@ -43,21 +44,12 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNod
 
   // (-)ハンドル押下時に関連するノードを削除する
   const handleMinusClickEventNodeHandle = useCallback((column: string) => {
-    const currentNode = getNode(id)
-    if (!currentNode) return
     if (showColumn) {
       hideColumnAndRelatedEdges(id, column)
     } else {
-      let nodesToDelete: string[] = []
-      nodesToDelete = getDescendantNodes(id)
-
-      setNodes(nodes => nodes.filter(n => !nodesToDelete.includes(n.id)))
-      setEdges(edges => edges.filter(edge =>
-        !(edge.source === id && edge.sourceHandle === `${column}__source`) &&
-        !nodesToDelete.includes(edge.target)
-      ))
+      hideTableAndRelatedEdges(id)
     }
-  }, [getNode, setNodes, setEdges, id, getDescendantNodes])
+  }, [showColumn, hideColumnAndRelatedEdges, hideTableAndRelatedEdges, id])
 
   // table モードの描画
   const renderTableNode = () => (
@@ -103,53 +95,76 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNod
       color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
       hideNode={hideNode}
       content={
-        <div className="py-2 px-0">
-          {data.columns.map((column) => (
-            <div
-              className="flex items-center relative"
-              key={'i-' + column}
-              style={{
-                position: 'relative', padding: '8px 16px',
-                flexGrow: 1, textAlign: 'left', paddingRight: '24px', paddingLeft: '24px',
-              }}
-            >
-              <p
-                className="cursor-pointer hover:underline flex-grow"
-                onClick={(e) => handleClickColumnName(e, column)}
+        <>
+          {/* table => column 切替時に残るハンドル */}
+          <div>
+            {(firstNodeTable != data.name) && (
+              <TableNodeHandle
+                type="source"
+                position={Position.Left}
+                id={`${id}__source`}
+                isConnectable={true}
+                nodeId={id}
+              />
+            )}
+            {(lastNodeTable != data.name) && (
+              <TableNodeHandle
+                type="target"
+                position={Position.Right}
+                id={`${id}__target`}
+                isConnectable={true}
+                nodeId={id}
+              />
+            )}
+          </div>
+          <div className="py-2 px-0">
+            {data.columns.map((column) => (
+              <div
+                className="flex items-center relative"
+                key={'i-' + column}
+                style={{
+                  position: 'relative', padding: '8px 16px',
+                  flexGrow: 1, textAlign: 'left', paddingRight: '24px', paddingLeft: '24px',
+                }}
               >
-                {column}
-              </p>
-              {( !data.last && !firstNodeColumns.includes(column)) && (
-                <EventNodeHandle
-                  type="source"
-                  position={options.rankdir === 'LR' ? Position.Right : Position.Left}
-                  id={`${column}__source`}
-                  isConnectable={true}
-                  nodeId={id}
-                  onDelete={() => handleMinusClickEventNodeHandle(column)}
-                  onConnect={() => handlePlusClickEventNodeHandle(column, 'source')}
-                />
-              )}
-              {( !data.first && !lastNodeColumns.includes(column)) && (
-                <EventNodeHandle
-                  type="target"
-                  position={options.rankdir === 'LR' ? Position.Left : Position.Right}
-                  id={`${column}__target`}
-                  isConnectable={true}
-                  nodeId={id}
-                  onDelete={() => handleMinusClickEventNodeHandle(column)}
-                  onConnect={() => handlePlusClickEventNodeHandle(column, 'target')}
-                />
-              )}
-            </div>
-          ))}
-          <EventNodeColumns
-            schema={data.schema}
-            tableName={data.name}
-            nodeColumns={data.columns}
-            handlePlusClickEventNodeHandle={handlePlusClickEventNodeHandle}
-          />
-        </div>
+                <p
+                  className="cursor-pointer hover:underline flex-grow"
+                  onClick={(e) => handleClickColumnName(e, column)}
+                >
+                  {column}
+                </p>
+                {( !data.last && !firstNodeColumns.includes(column)) && (
+                  <EventNodeHandle
+                    type="source"
+                    position={options.rankdir === 'LR' ? Position.Right : Position.Left}
+                    id={`${column}__source`}
+                    isConnectable={true}
+                    nodeId={id}
+                    onDelete={() => handleMinusClickEventNodeHandle(column)}
+                    onConnect={() => handlePlusClickEventNodeHandle(column, 'source')}
+                  />
+                )}
+                {( !data.first && !lastNodeColumns.includes(column)) && (
+                  <EventNodeHandle
+                    type="target"
+                    position={options.rankdir === 'LR' ? Position.Left : Position.Right}
+                    id={`${column}__target`}
+                    isConnectable={true}
+                    nodeId={id}
+                    onDelete={() => handleMinusClickEventNodeHandle(column)}
+                    onConnect={() => handlePlusClickEventNodeHandle(column, 'target')}
+                  />
+                )}
+              </div>
+            ))}
+            <EventNodeColumns
+              schema={data.schema}
+              tableName={data.name}
+              nodeColumns={data.columns}
+              handlePlusClickEventNodeHandle={handlePlusClickEventNodeHandle}
+            />
+          </div>
+        </>
       }
     />
   )

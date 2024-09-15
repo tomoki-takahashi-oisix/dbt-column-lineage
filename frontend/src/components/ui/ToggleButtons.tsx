@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faColumns, faTable } from '@fortawesome/free-solid-svg-icons'
 import { useStore as useStoreZustand } from '@/store/zustand'
-import { useReactFlow } from 'reactflow'
+import { Edge, useReactFlow } from 'reactflow'
 
 const ToggleButtons = () => {
-  const { setEdges } = useReactFlow()
+  const { getEdges, setEdges } = useReactFlow()
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
+  const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
   const [activeButton, setActiveButton] = useState('column')
 
   const buttons = [
@@ -21,11 +22,48 @@ const ToggleButtons = () => {
   }, [showColumn])
 
   // ボタンが押されたときの処理
-  function handleToggleButton(buttonId: string) {
-    setShowColumn(buttonId === 'column')
-    // FIXME warningが起きるのでエッジを消しているが・・・
-    setEdges([])
-  }
+  const handleToggleButton = useCallback((buttonId: string) => {
+    const showColumnValue = buttonId === 'column'
+    setShowColumn(showColumnValue)
+    const currentEdges = getEdges()
+
+    if (showColumnValue) {
+      const updatedEdges = currentEdges.map(edge => ({
+        ...edge,
+        fixed: true, // 削除しないように固定
+        style: {
+          ...edge.style,
+          strokeDasharray: '5,5',  // 点線のパターンを定義
+          strokeWidth: 1.5,        // 線の太さを設定
+        }
+      }))
+      setEdges(updatedEdges)
+    } else {
+      // カラムモードからテーブルモードへの切り替え
+      const tableEdges = new Map<string, Edge>()
+      currentEdges.forEach(edge => {
+        const sourceTable = edge.source
+        const targetTable = edge.target
+        const edgeKey = `${sourceTable}-${targetTable}`
+
+        if (!tableEdges.has(edgeKey)) {
+          tableEdges.set(edgeKey, {
+            id: edgeKey,
+            source: sourceTable,
+            target: targetTable,
+            // handleをつけずあえて＋ハンドルを表示させる
+            sourceHandle: `${sourceTable}__source`,
+            targetHandle: `${targetTable}__target`,
+          })
+        }
+      })
+
+      const newEdges = Array.from(tableEdges.values())
+      setEdges(newEdges)
+
+    }
+    setClearNodePosition(true)
+  }, [getEdges, setEdges, setShowColumn, setClearNodePosition])
 
   return (
     <div className="inline-flex rounded-md shadow-sm" role="group">
