@@ -306,6 +306,12 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     </Suspense>
   )
 }
+
+interface QueryParams {
+  sources: string[]
+  columns: { [source: string]: string[] }
+}
+
 export const Cte = () => {
   const { height: windowHeight, width: windowWidth } = useGetWindowSize()
   const [nodes, setNodes] = useNodesState([])
@@ -322,10 +328,12 @@ export const Cte = () => {
 
   const router = useRouter()
 
-  const handleFetchData = useCallback(async ({source, column}: {source: string, column: string}) => {
+  const handleFetchData = useCallback(async ({sources, columns}: QueryParams) => {
     setNodes([])
     setEdges([])
 
+    const source = sources[0]
+    const column = columns[source][0]
     const query = new URLSearchParams({source, column})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/cte?${query}`)

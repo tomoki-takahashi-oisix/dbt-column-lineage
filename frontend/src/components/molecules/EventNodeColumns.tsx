@@ -56,7 +56,7 @@ const EventNodeColumns: React.FC<EventNodeColumnsProps> = ({ schema, tableName, 
   // カラムが選択されたときの処理
   const handleColumnClick = useCallback(async (column: ColumnData) => {
     if (fetching) return
-    console.log(`Selected column: ${column.label}`)
+    // console.log(`Selected column: ${column.label}`)
     await handlePlusClickEventNodeHandle(column.value, 'source')
     // 選択されたカラムをカラム一覧から非表示にする
     setDisplayColumns(prev => prev.filter(col => col.value !== column.value))

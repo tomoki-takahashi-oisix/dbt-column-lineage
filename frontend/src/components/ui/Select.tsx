@@ -109,7 +109,7 @@ type SelectProps = {
   clearValue?: () => void
   isMulti?: boolean
   value?: any
-  onChange?: (d: any) => void
+  onChange?: (d: any, actionTypes: any) => void
   useFormatOptionLabel?: boolean
 }
 

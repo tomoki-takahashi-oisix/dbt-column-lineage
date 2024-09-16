@@ -54,7 +54,8 @@ export const useEventNodeOperations = (id: string) => {
   // リバースリネージしてノードを追加する
   const addReverseLineage = useCallback(async (id: string, source: string, column: string) => {
     setLoading(true)
-    const query = new URLSearchParams({source, column, depth: '1', show_column: showColumn.toString(), reverse: 'true'})
+    const columns = JSON.stringify({ [source]: [column] })
+    const query = new URLSearchParams({sources:source, columns, depth: '1', show_column: showColumn.toString(), reverse: 'true'})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -83,7 +84,8 @@ export const useEventNodeOperations = (id: string) => {
   // シングルリネージしてノードを追加する
   const addSingleLineage = useCallback(async (source: string, column: string) => {
     setLoading(true)
-    const query = new URLSearchParams({ source, column, depth: '1', show_column: showColumn.toString() })
+    const columns = JSON.stringify({ [source]: [column] })
+    const query = new URLSearchParams({ sources:source, columns, depth: '1', show_column: showColumn.toString() })
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()

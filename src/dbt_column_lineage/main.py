@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import json
 import os
 from pathlib import Path
 from urllib.parse import urlencode
@@ -150,27 +151,33 @@ async def list_sources(schema: str, current_user: str = Depends(get_current_user
 
 
 @app.get(f'{BASE_ROUTE}/columns')
-async def list_columns(schema: str, source: str, current_user: str = Depends(get_current_user)):
+async def list_columns(source: str, current_user: str = Depends(get_current_user)):
     dbt_sqlglot = DbtSqlglot(logger)
-    columns = dbt_sqlglot.list_columns(schema, source)
+    columns = dbt_sqlglot.list_columns(source)
     return JSONResponse(content=columns)
 
 
 @app.get(f'{BASE_ROUTE}/lineage')
 async def find_lineage(
-    source: str = Query(..., description='source table name'),
-    column: str = Query(..., description='column name'),
+    sources: str = Query(..., description='source table names'),
+    columns: str = Query(..., description='columns name'),
     show_column: bool = Query(False, description='show column lineage'),
     reverse: bool = Query(False, description='reverse lineage'),
     depth: int = Query(-1, description='depth of lineage', ge=-1),
     current_user: str = Depends(get_current_user)):
     if show_column:
+        parsed_columns = json.loads(columns)
         dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
-        res = dbt_sqlglot.column_lineage(source, column.upper(), reverse)
+        for source in sources.split(','):
+            for column in parsed_columns.get(source):
+                dbt_sqlglot.column_lineage(source, column.upper(), reverse)
+        res = dbt_sqlglot.ret_edges_nodes()
     else:
         # fixme depth=1固定でいいのか
         dbt_sqlglot = DbtSqlglot(logger, request_depth=1)
-        res = dbt_sqlglot.table_lineage(source, reverse)
+        for source in sources.split(','):
+            dbt_sqlglot.table_lineage(source, reverse)
+        res = dbt_sqlglot.ret_edges_nodes()
     return JSONResponse(content=res)
 
 

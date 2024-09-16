@@ -85,34 +85,35 @@ class DbtSqlglot:
         ret = sorted(ret, key=lambda x:x['label'])
         return ret
 
-    def list_columns(self, req_schema, req_source):
+    def list_columns(self, req_source):
         for k in self.dbt_manifest_nodes:
             dbt_node = self.dbt_manifest_nodes[k]
-            dbt_schema = dbt_node['schema']
             dbt_alias = dbt_node['alias']
             dbt_columns = dbt_node['columns']
-            if dbt_schema == req_schema and dbt_alias == req_source:
+            if dbt_alias == req_source:
                 ret = []
                 for key, value in dbt_columns.items():
                     ret.append({'value': key, 'label': value['name'], 'description': value['description']})
                 return ret
 
 
-    def table_lineage(self, source: str, revs=False) -> dict:
+    def table_lineage(self, source: str, revs=False):
         dbt_node = self.__get_dbt_node(source)
         unique_id = dbt_node.get('unique_id')
         depth = 0
         self.__table_dependencies_recursive(unique_id, revs, depth)
-        return {'edges': self.edges, 'nodes': self.nodes}
 
 
-    def column_lineage(self, source: str, column: str, revs: bool) -> dict:
+    def column_lineage(self, source: str, column: str, revs: bool):
         if not revs:
             depth = 0
             self.__column_lineage_recursive('', source, '', [column.upper()], depth)
-            return {'edges': self.edges, 'nodes': self.nodes}
         else:
-            return self.__reverse_column_lineage(source, column)
+            self.__reverse_column_lineage(source, column)
+
+
+    def ret_edges_nodes(self) -> dict:
+        return {'edges': self.edges, 'nodes': self.nodes}
 
 
     def cte_dependency(self, source: str, columns: []):
@@ -547,7 +548,8 @@ class DbtSqlglot:
                     'sourceHandle': f'{target_column}__source',
                     'targetHandle': f'{column}__target'
                 })
-        return {'edges': ret_edges, 'nodes': ret_nodes}
+        self.edges = ret_edges
+        self.nodes = ret_nodes
 
     def __cte_dependency_impl(self, dbt_depends_on_nodes: [], compiled_code: str, source: str, columns: []) -> dict:
         dependencies = {}

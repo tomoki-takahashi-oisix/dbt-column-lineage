@@ -36,8 +36,8 @@ export type NodeDataType = {
 }
 
 interface QueryParams {
-  source: string
-  column: string
+  sources: string[]
+  columns: {[source: string]: string[]}
   showColumn: string
 }
 
@@ -56,11 +56,11 @@ export const Cl = () => {
 
   const searchParams = useSearchParams()
 
-  const handleFetchData = useCallback(async ({ source, column, showColumn }: QueryParams) => {
+  const handleFetchData = useCallback(async ({ sources, columns, showColumn }: QueryParams) => {
     setNodes([])
     setEdges([])
 
-    const query = new URLSearchParams({source, column, show_column: showColumn})
+    const query = new URLSearchParams({sources:sources.join(','), columns: JSON.stringify(columns), show_column: showColumn})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -114,7 +114,7 @@ export const Cl = () => {
 
   const nodeTypes = useMemo(
     () => ({
-      eventNode: (props: EventNodeProps) => <EventNode {...props} setNodesPositioned={setNodesPositioned} />
+      eventNode: (props: EventNodeProps) => <EventNode {...props} />
     }),
     [],
   )

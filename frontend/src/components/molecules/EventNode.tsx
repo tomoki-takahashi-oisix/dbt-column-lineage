@@ -11,10 +11,9 @@ import TableNodeHandle from '@/components/molecules/TableNodeHandle'
 
 export interface EventNodeProps extends NodeProps {
   data: NodeDataType
-  setNodesPositioned?: (positioned: boolean) => void
 }
 
-export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNodesPositioned }) => {
+export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
   const { addSingleLineage, addReverseLineage, hideNode,
     hideTableAndRelatedEdges, hideColumnAndRelatedEdges,
     lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id)
@@ -25,9 +24,9 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected, setNod
   // カラム名押下時にCTE画面に遷移する
   const handleClickColumnName = useCallback((e: React.MouseEvent, rawColumn: string) => {
     e.stopPropagation()
-    const { schema, name: source } = data
-    const column = rawColumn.toLowerCase()
-    const params = new URLSearchParams({schema, source, column })
+    const { schema: schema, name: sources } = data
+    const columns = rawColumn.toLowerCase()
+    const params = new URLSearchParams({schema, sources, columns })
 
     // router.push(`/cte?${params.toString()}`)
     window.open(`/cte?${params.toString()}`, '_blank')
