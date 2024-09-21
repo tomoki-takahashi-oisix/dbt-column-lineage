@@ -26,7 +26,9 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
     e.stopPropagation()
     const { schema: schema, name: sources } = data
     const columns = rawColumn.toLowerCase()
-    const params = new URLSearchParams({schema, sources, columns })
+    const activeSource = sources
+    const selectedColumns = JSON.stringify({ [sources]: [columns] })
+    const params = new URLSearchParams({schema, sources, activeSource, selectedColumns})
 
     // router.push(`/cte?${params.toString()}`)
     window.open(`/cte?${params.toString()}`, '_blank')
@@ -53,10 +55,12 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
   // table モードの描画
   const renderTableNode = () => (
     <EventNodeFrame
+      schema={data.schema}
       tableName={data.name}
       selected={selected}
       color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
       hideNode={hideNode}
+      isClickableTableName={true}
       content={
         <>
           {(firstNodeTable != data.name) && (
@@ -89,10 +93,12 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
   // column モードの描画
   const renderColumnNode = () => (
     <EventNodeFrame
+      schema={data.schema}
       tableName={data.name}
       selected={selected}
       color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
       hideNode={hideNode}
+      isClickableTableName={false}
       content={
         <>
           {/* table => column 切替時に残るハンドル */}

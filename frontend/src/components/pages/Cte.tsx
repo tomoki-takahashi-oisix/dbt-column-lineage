@@ -29,6 +29,13 @@ import dagre from 'dagre'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+const myTheme = EditorView.theme({
+  '.cm-content': {
+    fontFamily: 'Roboto !important',
+    fontSize: 'smaller'
+  },
+})
+
 const highlightEffect = StateEffect.define()
 const highlightExtension = StateField.define({
   create() { return Decoration.none },
@@ -47,7 +54,7 @@ const nodeWidth = 150
 const nodeHeight = 40
 
 const getLayoutedElements = (nodes: Node[], edges: Edge[], rankdir: string) => {
-  console.log(`rankdir=${rankdir}, layouting...`)
+  // console.log(`rankdir=${rankdir}, layouting...`)
   const g = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}))
   g.setGraph({ rankdir: rankdir })
 
@@ -121,7 +128,6 @@ interface CteFlowProps {
   nodesPositioned: boolean
   setNodesPositioned: Function
   codeMirrorRef: React.RefObject<ReactCodeMirrorRef>
-  setMode: Function
   lineageTableColumns: { [key: string]: any }
 }
 
@@ -134,7 +140,7 @@ function searchTextCodeMirror(view: EditorView, searchQuery: string) {
   return cursor.value
 }
 
-const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPositioned, codeMirrorRef, setMode, lineageTableColumns}: CteFlowProps) => {
+const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPositioned, codeMirrorRef, lineageTableColumns}: CteFlowProps) => {
   const isFirstRender = useRef(true)
   const { fitView } = useReactFlow()
   const router = useRouter()
@@ -162,7 +168,6 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
   }, [searchParams])
 
   const codeJump = useCallback((node: Node) => {
-    setMode('query')
     if (codeMirrorRef.current == null || codeMirrorRef.current.view == null) {
       return
     }
@@ -191,7 +196,7 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
 
   const toggleHidden = useCallback((checked: boolean) => {
     setHidden(checked)
-    console.log(`hidden=${checked}`)
+    // console.log(`hidden=${checked}`)
     setNodesPositioned(false)
   }, [])
 
@@ -199,7 +204,7 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     if (nodes.length == 0 || nodesPositioned) {
       return
     }
-    console.log(`nodes.length == ${nodes.length}, nodesPositioned=${nodesPositioned}`)
+    // console.log(`nodes.length == ${nodes.length}, nodesPositioned=${nodesPositioned}`)
     const layouted = getLayoutedElements(nodes, edges, options.rankdir)
     setNodes([...layouted.nodes].map(hide(hidden)))
     setEdges([...layouted.edges].map(hide(hidden)))
@@ -233,13 +238,11 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     if (codeMirrorRef.current == null || codeMirrorRef.current.view == null) {
       return
     }
-    // console.log(nodesPositioned, nodes.length)
 
     const highlightDecorationRanges = []
     const highlightDecoration = Decoration.mark({
       class: 'bg-yellow-200'
     })
-    console.log(lineageTableColumns)
     for (const table in lineageTableColumns) {
       const meta = lineageTableColumns[table]
       for (const column of meta['columns'] as string[]) {
@@ -257,7 +260,7 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
 
       highlightDecorationRanges.push(highlightDecoration.range(cursorValue.from, cursorValue.to))
     }
-    console.log(highlightDecorationRanges)
+    // console.log(highlightDecorationRanges)
     codeMirrorRef.current.view.dispatch({
       effects: highlightEffect.of(highlightDecorationRanges as any)
     })
@@ -318,7 +321,7 @@ export const Cte = () => {
   const [edges, setEdges] = useEdgesState([])
   const [nodesPositioned, setNodesPositioned] = useState(true)
   const codeMirrorRef = useRef<ReactCodeMirrorRef>(null)
-  const [mode, setMode] = useState<string>('query')
+  const [mode, setMode] = useState<string>('lineage')
   const [tableName, setTableName] = useState<string>('')
   const [materialized, setMaterialized] = useState<string>('')
   const [query, setQuery] = useState<string>('')
@@ -333,7 +336,7 @@ export const Cte = () => {
     setEdges([])
 
     const source = sources[0]
-    const column = columns[source][0]
+    const column = columns[source] ? columns[source][0] : ''
     const query = new URLSearchParams({source, column})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/cte?${query}`)
@@ -353,39 +356,49 @@ export const Cte = () => {
     setColumns(data['columns'])
     setLineageTableColumns(data['lineage_table_columns'])
     setNodesPositioned(false)
+    handleClickLineageMode()
+
     return true
   }, [router])
+
+  const handleClickLineageMode = useCallback(() => {
+    setMode('lineage')
+    setTimeout(()=>setNodesPositioned(false),100)
+  }, [setMode, setNodesPositioned])
 
   return (
     <div>
       <Header handleFetchData={handleFetchData} />
       <div className="flex flex-wrap">
         <div className="w-1/2">
-          <h4 className="px-1 text-2xl font-bold">
-            <span>{tableName}</span>
-            <small className="ms-2 font-semibold text-gray-500 dark:text-gray-400">{materialized}</small>
+          <h4 className="px-1 text-2xl font-bold flex items-center">
+            <span className="select-text">{tableName}</span>
+            <small className="ms-2 font-semibold text-gray-500 dark:text-gray-400 select-text">
+              {materialized}
+            </small>
           </h4>
 
-          <div className="mx-2">
-            <button className={'px-1 ' + (mode == 'description' && 'font-semibold')}
-                    onClick={() => setMode('description')}>Description
-            </button>
-            <button className={'px-1 ' + (mode == 'columns' && 'font-semibold')}
-                    onClick={() => setMode('columns')}>Columns
-            </button>
-            <button className={'px-1 ' + (mode == 'query' && 'font-semibold')} onClick={() => setMode('query')}>Query
-            </button>
-          </div>
           <div className="px-2" style={{ height: windowHeight * 0.85, overflowY: 'auto' }}>
-            {mode == 'description' &&
-              <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{description}</Markdown>}
-            {mode == 'columns' && <Columns columns={columns}></Columns>}
-            {mode == 'query' &&
-              <CodeMirror ref={codeMirrorRef} value={query} extensions={[sql(), highlightExtension]} />}
+            <CodeMirror ref={codeMirrorRef} value={query} theme={myTheme} extensions={[sql(), highlightExtension]} />
           </div>
         </div>
-        {/* 一番上のプルダウン一覧の分が55px*/}
-        <div className="w-1/2" style={{ height: windowHeight - 55 }}>
+        {/* 一番上のプルダウン一覧の分が55px、タブが24px*/}
+        <div className="w-1/2" style={{ height: windowHeight - 55 - 24 }}>
+          <div className="mx-2">
+            <button className={'px-1 ' + (mode == 'description' && 'font-semibold')} onClick={() => setMode('description')}>
+              Description
+            </button>
+            <button className={'px-1 ' + (mode == 'columns' && 'font-semibold')} onClick={() => setMode('columns')}>
+              Columns
+            </button>
+            <button className={'px-1 ' + (mode == 'lineage' && 'font-semibold')} onClick={() => handleClickLineageMode()}>
+              Lineage
+            </button>
+          </div>
+          {mode == 'description' &&
+            <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{description}</Markdown>}
+          {mode == 'columns' && <Columns columns={columns}></Columns>}
+          {mode == 'lineage' &&
           <ReactFlowProvider>
             <CteFlow
               nodes={nodes}
@@ -395,11 +408,11 @@ export const Cte = () => {
               codeMirrorRef={codeMirrorRef}
               nodesPositioned={nodesPositioned}
               setNodesPositioned={setNodesPositioned}
-              setMode={setMode}
               lineageTableColumns={lineageTableColumns}
             >
             </CteFlow>
           </ReactFlowProvider>
+          }
         </div>
       </div>
     </div>

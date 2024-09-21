@@ -6,21 +6,32 @@ import { faEllipsisV, faEyeSlash } from '@fortawesome/free-solid-svg-icons'
 import { useSearchParams } from 'next/navigation'
 
 interface NodeProps {
+  schema: string
   tableName: string
   selected: boolean
   color?: string
+  isClickableTableName: boolean
   content: React.ReactNode
   hideNode: () => void
 }
 
-const EventNodeFrame: React.FC<NodeProps> = ({ tableName, selected, color, content, hideNode }) => {
+const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, color, isClickableTableName, content, hideNode }) => {
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
+  const handleClickTableName = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    const sources = tableName
+    const activeSource = sources
+    const params = new URLSearchParams({schema, sources, activeSource})
+
+    window.open(`/cte?${params.toString()}`, '_blank')
+  }, [schema, tableName])
+
   // クリック時にテーブル名をクリップボードにコピーする
-  const handleClickTableName = useCallback(async (e: React.MouseEvent) => {
+  const handleClickCopyName = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
       await navigator.clipboard.writeText(tableName)
@@ -76,7 +87,12 @@ const EventNodeFrame: React.FC<NodeProps> = ({ tableName, selected, color, conte
         className="relative py-2 px-8 flex-grow"
         style={titleStyle}
       >
-        <span>{tableName}</span>
+        {isClickableTableName &&
+          <span className="cursor-pointer hover:underline" onClick={handleClickTableName}>{tableName}</span>
+        }
+        {!isClickableTableName &&
+          <span>{tableName}</span>
+        }
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
           <button
             ref={buttonRef}
@@ -92,7 +108,7 @@ const EventNodeFrame: React.FC<NodeProps> = ({ tableName, selected, color, conte
             >
               <div className="py-1">
                 <button
-                  onClick={handleClickTableName}
+                  onClick={handleClickCopyName}
                   className="block w-full text-center px-3 py-2 text-gray-700 hover:bg-gray-100"
                   title="Copy table name"
                 >

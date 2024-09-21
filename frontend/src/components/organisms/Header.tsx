@@ -107,10 +107,8 @@ export const Header = ({handleFetchData}: HeaderProps) => {
       changeActiveSource(qActiveSource, false)
 
       if(qShowColumn) setShowColumn(qShowColumn === 'true')
-      if (Object.keys(qSelectedColumns).length != 0) {
-        setSelectedColumnsBySource(qSelectedColumns)
-        setCurrentSelectedColumns(qSelectedColumns[qActiveSource] || [])
-      }
+      setSelectedColumnsBySource(qSelectedColumns)
+      setCurrentSelectedColumns(qSelectedColumns[qActiveSource] || [])
 
       params = {
         schema: qSchema,
@@ -135,6 +133,11 @@ export const Header = ({handleFetchData}: HeaderProps) => {
     }
   }, [pathname, schema, selectedSources, activeSource, showColumn, selectedColumnsBySource])
 
+  const isLineageModeColumnLevel = useCallback(() => {
+    return lineageMode === '/cl'
+  }, [lineageMode])
+
+
   useEffect(() => {
     if (searchParams.size) {
       submit(true)
@@ -146,12 +149,11 @@ export const Header = ({handleFetchData}: HeaderProps) => {
     if (pathname !== lineageMode) setLineageMode(pathname)
   }, [])
 
-
   // submitボタンのdisabled制御
   useEffect(() => {
     if (schema && selectedSources.length > 0) {
       for (const source of selectedSources) {
-        if (!selectedColumnsBySource[source] || selectedColumnsBySource[source].length === 0) {
+        if (isLineageModeColumnLevel() &&(!selectedColumnsBySource[source] || selectedColumnsBySource[source].length === 0)) {
           setIsSubmitDisabled(true)
           return
         }
@@ -188,7 +190,7 @@ export const Header = ({handleFetchData}: HeaderProps) => {
             onActiveSourceChange={(source) => changeActiveSource(source)}
             onColumnsChange={handleColumnsChange}
             className="mr-2 w-[60vw]"
-            isMulti={lineageMode === '/cl'}
+            isMulti={isLineageModeColumnLevel()}
           />
           <button
             type="button"
