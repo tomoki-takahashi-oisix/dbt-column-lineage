@@ -4,14 +4,18 @@ import { useStore as useStoreZustand } from '@/store/zustand'
 
 export const useEventNodeOperations = (id: string) => {
   const { getNodes, setNodes, getEdges, setEdges } = useReactFlow()
-  const setLoading = useStoreZustand((state) => state.setLoading)
-  const showColumn = useStoreZustand((state) => state.showColumn)
-  const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
+  const updateNodeInternals = useUpdateNodeInternals()
+
   const [lastNodeColumns, setLastNodeColumns] = useState<string[]>([])
   const [firstNodeColumns, setFirstNodeColumns] = useState<string[]>([])
   const [lastNodeTable, setLastNodeTable] = useState<string>()
   const [firstNodeTable, setFirstNodeTable] = useState<string>()
-  const updateNodeInternals = useUpdateNodeInternals()
+
+  const setLoading = useStoreZustand((state) => state.setLoading)
+  const showColumn = useStoreZustand((state) => state.showColumn)
+  const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
+  const leftMaxDepth = useStoreZustand((state) => state.leftMaxDepth)
+  const rightMaxDepth = useStoreZustand((state) => state.rightMaxDepth)
 
   // ノードをマージする補助関数
   const mergeNodes = useCallback((existingNodes: Node[], newNodes: Node[]): Node[] => {
@@ -56,6 +60,11 @@ export const useEventNodeOperations = (id: string) => {
     setLoading(true)
     const columns = JSON.stringify({ [source]: [column] })
     const query = new URLSearchParams({sources:source, columns, depth: '1', show_column: showColumn.toString(), reverse: 'true'})
+    if (rightMaxDepth) {
+      query.set('depth', '-1')
+    } else {
+      query.set('depth', '1')
+    }
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -79,13 +88,18 @@ export const useEventNodeOperations = (id: string) => {
     setEdges(mergedEdges)
 
     setClearNodePosition(true)
-  }, [getNodes, getEdges, showColumn])
+  }, [getNodes, getEdges, showColumn, rightMaxDepth])
 
   // シングルリネージしてノードを追加する
   const addSingleLineage = useCallback(async (source: string, column: string) => {
     setLoading(true)
     const columns = JSON.stringify({ [source]: [column] })
     const query = new URLSearchParams({ sources:source, columns, depth: '1', show_column: showColumn.toString() })
+    if (leftMaxDepth) {
+      query.set('depth', '-1')
+    } else {
+      query.set('depth', '1')
+    }
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -109,7 +123,7 @@ export const useEventNodeOperations = (id: string) => {
     // updateNodeInternals(id)
 
     setClearNodePosition(true)
-  }, [getNodes, getEdges, showColumn, updateNodeInternals])
+  }, [getNodes, getEdges, showColumn, updateNodeInternals, leftMaxDepth])
 
   // ノードを非表示にする
   const hideNode = useCallback(() => {

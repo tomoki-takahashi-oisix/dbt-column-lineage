@@ -53,6 +53,11 @@ export const Cl = () => {
   const setOptions = useStoreZustand((state) => state.setOptions)
   const clearNodePosition = useStoreZustand((state) => state.clearNodePosition)
   const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
+  const leftMaxDepth = useStoreZustand((state) => state.leftMaxDepth)
+  const setLeftMaxDepth = useStoreZustand((state) => state.setLeftMaxDepth)
+  const rightMaxDepth = useStoreZustand((state) => state.rightMaxDepth)
+  const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
+  const showColumn = useStoreZustand((state) => state.showColumn)
 
   const searchParams = useSearchParams()
 
@@ -61,6 +66,12 @@ export const Cl = () => {
     setEdges([])
 
     const query = new URLSearchParams({sources:sources.join(','), columns: JSON.stringify(columns), show_column: showColumn})
+    // テーブルモードの場合は広がり過ぎるのでdepthを1にする
+    if (showColumn) {
+      query.append('depth', '-1')
+    } else {
+      query.append('depth', '1')
+    }
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
@@ -134,15 +145,42 @@ export const Cl = () => {
             nodeTypes={nodeTypes}
           >
             <Panel position="top-left">
-              <select value={options.rankdir} onChange={e => changeRankDir(e.target.value)}>
-                <option value="LR">Left - Right</option>
-                <option value="RL">Right - Left</option>
-              </select>
-            </Panel>
-            <Panel position="bottom-left">
+              {/*<select value={options.rankdir} onChange={e => changeRankDir(e.target.value)}>*/}
+              {/*  <option value="LR">Left - Right</option>*/}
+              {/*  <option value="RL">Right - Left</option>*/}
+              {/*</select>*/}
               <div className="App">
                 <ToggleButtons />
               </div>
+              <div className="flex items-center">
+                <input
+                  id="leftMaxDepth"
+                  type="checkbox"
+                  checked={leftMaxDepth}
+                  onChange={() => setLeftMaxDepth(!leftMaxDepth)}
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                />
+                <label htmlFor="leftMaxDepth">
+                <span className="ml-2 text-gray-700">
+                  max depth for left (+) button
+                </span>
+                </label>
+              </div>
+              {showColumn != true &&
+              <div className="flex items-center">
+                <input
+                  id="rightMaxDepth"
+                  type="checkbox"
+                  checked={rightMaxDepth}
+                  onChange={() => setRightMaxDepth(!rightMaxDepth)}
+                  className="form-checkbox h-5 w-5 text-blue-600 rounded"
+                />
+                <label htmlFor="rightMaxDepth">
+                <span className="ml-2 text-gray-700">
+                  max depth for right (+) button
+                </span>
+                </label>
+              </div>}
             </Panel>
             <Controls />
             <Background style={{ backgroundColor: '#f5f5f5' }} />

@@ -164,20 +164,18 @@ async def find_lineage(
     show_column: bool = Query(False, description='show column lineage'),
     reverse: bool = Query(False, description='reverse lineage'),
     depth: int = Query(-1, description='depth of lineage', ge=-1),
-    current_user: str = Depends(get_current_user)):
+    current_user: str = Depends(get_current_user)
+):
+    dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
     if show_column:
         parsed_columns = json.loads(columns)
-        dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
         for source in sources.split(','):
             for column in parsed_columns.get(source):
                 dbt_sqlglot.column_lineage(source, column.upper(), reverse)
-        res = dbt_sqlglot.ret_edges_nodes()
     else:
-        # fixme depth=1固定でいいのか
-        dbt_sqlglot = DbtSqlglot(logger, request_depth=1)
         for source in sources.split(','):
             dbt_sqlglot.table_lineage(source, reverse)
-        res = dbt_sqlglot.ret_edges_nodes()
+    res = dbt_sqlglot.ret_edges_nodes()
     return JSONResponse(content=res)
 
 

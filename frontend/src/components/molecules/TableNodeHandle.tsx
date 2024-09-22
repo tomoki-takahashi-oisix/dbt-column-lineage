@@ -38,7 +38,7 @@ const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, i
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '16px',
+    top: '22px',
     transform: 'translateY(-50%)',
     ...(position === Position.Left
       ? { left: '-2px' }

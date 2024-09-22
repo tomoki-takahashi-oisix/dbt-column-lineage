@@ -1,8 +1,8 @@
 'use client'
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { memo, useCallback, useMemo, useState } from 'react'
 import { faCopy } from '@fortawesome/free-regular-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faEllipsisV, faEyeSlash } from '@fortawesome/free-solid-svg-icons'
+import { faEllipsisV, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { useSearchParams } from 'next/navigation'
 
 interface NodeProps {
@@ -18,8 +18,6 @@ interface NodeProps {
 const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, color, isClickableTableName, content, hideNode }) => {
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const handleClickTableName = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -41,9 +39,9 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
     }
   }, [tableName])
 
-  const handleClickXmark = useCallback(() => {
+  const handleClickXmark = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
     hideNode()
-    setShowMenu(false)
   }, [hideNode])
 
   // ソーステーブルの場合は非表示ボタンを表示しない
@@ -55,21 +53,6 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
   const titleStyle = useMemo(() => ({
     backgroundColor: color || '#FFF',
   }), [color])
-
-  // メニューの外側をクリックしたときにメニューを閉じる
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
-        setShowMenu(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
 
   return (
     <div
@@ -84,47 +67,57 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
       `}
     >
       <div
-        className="relative py-2 px-8 flex-grow"
+        className="relative py-2 px-3 flex items-center justify-between"
         style={titleStyle}
       >
-        {isClickableTableName &&
-          <span className="cursor-pointer hover:underline" onClick={handleClickTableName}>{tableName}</span>
-        }
-        {!isClickableTableName &&
-          <span>{tableName}</span>
-        }
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          <button
-            ref={buttonRef}
-            className="p-1 rounded-full hover:bg-gray-200 focus:outline-none"
-            onClick={() => setShowMenu(!showMenu)}
-          >
-            <FontAwesomeIcon icon={faEllipsisV} />
-          </button>
-          {showMenu && (
-            <div
-              ref={menuRef}
-              className="absolute left-0 bottom-full mb-1 bg-white rounded-md shadow-lg z-10"
+        <div className="flex-grow mr-2 overflow-hidden text-ellipsis">
+          {isClickableTableName ? (
+            <span className="cursor-pointer hover:underline" onClick={handleClickTableName} title={tableName}>
+              {tableName}
+            </span>
+          ) : (
+            <span title={tableName}>{tableName}</span>
+          )}
+        </div>
+        <div className="flex-shrink-0 flex items-center">
+          <div className="relative group">
+            <button
+              className="p-1 rounded-full hover:bg-gray-200 focus:outline-none"
+              onMouseEnter={() => setShowMenu(true)}
+              onMouseLeave={() => setShowMenu(false)}
             >
-              <div className="py-1">
-                <button
-                  onClick={handleClickCopyName}
-                  className="block w-full text-center px-3 py-2 text-gray-700 hover:bg-gray-100"
-                  title="Copy table name"
-                >
-                  <FontAwesomeIcon icon={faCopy} />
-                </button>
-                {showHideButton() && (
+              <FontAwesomeIcon icon={faEllipsisV} />
+            </button>
+            {showMenu && (
+              <div
+                className="absolute right-0 top-0 bg-white rounded-md shadow-lg z-10 whitespace-nowrap"
+                style={{
+                  transform: 'translate(5%, -90%)',
+                }}
+                onMouseEnter={() => setShowMenu(true)}
+                onMouseLeave={() => setShowMenu(false)}
+              >
+                <div className="py-1">
                   <button
-                    onClick={handleClickXmark}
-                    className="block w-full text-center px-3 py-2 text-gray-700 hover:bg-gray-100"
-                    title="Hide node"
+                    onClick={handleClickCopyName}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    title="Copy table name"
                   >
-                    <FontAwesomeIcon icon={faEyeSlash} />
+                    <FontAwesomeIcon icon={faCopy} className="mr-2" />
+                    Copy table name
                   </button>
-                )}
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+          {showHideButton() && (
+            <button
+              onClick={handleClickXmark}
+              className="p-1 ml-2 rounded-full hover:bg-gray-200 focus:outline-none"
+              title="Hide node"
+            >
+              <FontAwesomeIcon icon={faTimes} />
+            </button>
           )}
         </div>
       </div>

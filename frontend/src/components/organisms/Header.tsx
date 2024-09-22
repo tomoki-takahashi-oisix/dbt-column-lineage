@@ -27,6 +27,7 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   const setLoading = useStoreZustand((state) => state.setLoading)
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
+  const setColumnModeEdges = useStoreZustand((state) => state.setColumnModeEdges)
 
   const router = useRouter()
   const pathname = usePathname()
@@ -99,14 +100,14 @@ export const Header = ({handleFetchData}: HeaderProps) => {
       const qSources = searchParams.get('sources')?.split(',') || []
       const qActiveSource = searchParams.get('activeSource') as string
       const qSelectedColumns = JSON.parse(searchParams.get('selectedColumns') as string) || {}
-      const qShowColumn = searchParams.get('showColumn') as string
+      const qShowColumn = searchParams.get('showColumn') as string === 'true'
 
       handleFetchSchemasData()
       changeSchema(qSchema)
       changeSources(qSources)
       changeActiveSource(qActiveSource, false)
 
-      if(qShowColumn) setShowColumn(qShowColumn === 'true')
+      if(qShowColumn) setShowColumn(qShowColumn)
       setSelectedColumnsBySource(qSelectedColumns)
       setCurrentSelectedColumns(qSelectedColumns[qActiveSource] || [])
 
@@ -117,9 +118,12 @@ export const Header = ({handleFetchData}: HeaderProps) => {
         showColumn: qShowColumn,
       }
     }
+    // データ取得中はローディング表示
     setLoading(true)
     const ret = await handleFetchData(params)
     setLoading(false)
+    // 保存していたカラムモードのエッジを削除
+    setColumnModeEdges([])
 
     if (!routeChange && ret) { // submit押したときかつデータ取得成功時
       const query = new URLSearchParams({

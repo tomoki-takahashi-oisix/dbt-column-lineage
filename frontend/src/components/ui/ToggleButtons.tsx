@@ -9,6 +9,10 @@ const ToggleButtons = () => {
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
   const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
+  const columnModeEdges = useStoreZustand((state) => state.columnModeEdges)
+  const setColumnModeEdges = useStoreZustand((state) => state.setColumnModeEdges)
+  const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
+
   const [activeButton, setActiveButton] = useState('column')
 
   const buttons = [
@@ -28,6 +32,7 @@ const ToggleButtons = () => {
     const currentEdges = getEdges()
 
     if (showColumnValue) {
+      // テーブルモードからカラムモードへの切り替え
       const updatedEdges = currentEdges.map(edge => ({
         ...edge,
         fixed: true, // 削除しないように固定
@@ -37,8 +42,15 @@ const ToggleButtons = () => {
           strokeWidth: 1.5,        // 線の太さを設定
         }
       }))
-      setEdges(updatedEdges)
+      // 保存しておいたカラムモードのエッジを復元し、エッジをマージ
+      const newEdges = columnModeEdges.concat(updatedEdges)
+      setEdges(newEdges)
+      // カラムモードではrightMaxDepthは使えないのでfalseにする
+      setRightMaxDepth(false)
     } else {
+      // 前のカラムモードのfixed以外のエッジを保存
+      const withoutFixedEdges = currentEdges.filter((edge:any) => !edge.fixed)
+      setColumnModeEdges(withoutFixedEdges)
       // カラムモードからテーブルモードへの切り替え
       const tableEdges = new Map<string, Edge>()
       currentEdges.forEach(edge => {
@@ -51,7 +63,6 @@ const ToggleButtons = () => {
             id: edgeKey,
             source: sourceTable,
             target: targetTable,
-            // handleをつけずあえて＋ハンドルを表示させる
             sourceHandle: `${sourceTable}__source`,
             targetHandle: `${targetTable}__target`,
           })
@@ -63,7 +74,7 @@ const ToggleButtons = () => {
 
     }
     setClearNodePosition(true)
-  }, [getEdges, setEdges, setShowColumn, setClearNodePosition])
+  }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges])
 
   return (
     <div className="inline-flex rounded-md shadow-sm" role="group">
