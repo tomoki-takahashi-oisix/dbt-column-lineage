@@ -68,7 +68,7 @@ async def static_page(request: Request):
             request.session['csrf'] = os.urandom(32).hex()
         elif 'access_token' not in request.session:
             return RedirectResponse(url='/login')
-        logger.debug(f'access_token: {request.session.get('access_token')}')
+        logger.debug(f'access_token: {request.session.get("access_token")}')
 
     if request_path == '/':
         static_path = 'index'
