@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from urllib import parse
 from urllib.parse import urlencode
 
 import requests
@@ -18,7 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from dbt_column_lineage.constants import USE_OAUTH, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_ROUTE
 from dbt_column_lineage.lineage import DbtSqlglot
 from dbt_column_lineage.looker import Looker
-from dbt_column_lineage.utils import get_logger, get_redirect_url
+from dbt_column_lineage.utils import get_logger, get_redirect_url, get_git_changed_files, extract_model_name
 
 import typer
 
@@ -215,12 +216,26 @@ async def get_explore_fields(slug: str, current_user: str = Depends(get_current_
 static_files_path = Path(__file__).parent / 'frontend_out'
 app.mount('/', StaticFiles(directory=str(static_files_path), html=True), name='static')
 
+@cli.command()
+def run_params():
+    changed_files = get_git_changed_files()
+    sources = []
+    for file in changed_files:
+        source = extract_model_name(file)
+        if source:
+            sources.append(source)
+    if len(sources) != 0:
+        converted_sources = 'sources=' + parse.quote(','.join(sources))
+
+        logger.info(f'http://127.0.0.1:5000/cl?{converted_sources}&showColumn=false&depth=0')
+    else:
+        logger.info('http://127.0.0.1:5000')
+    run()
 
 @cli.command()
 def run(host: str = '127.0.0.1', port: int = 5000):
     import uvicorn
     uvicorn.run('dbt_column_lineage.main:app', host=host, port=port)
-
 
 @cli.command()
 def version():

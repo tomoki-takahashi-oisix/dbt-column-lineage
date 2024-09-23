@@ -94,20 +94,23 @@ export const Header = ({handleFetchData}: HeaderProps) => {
         sources: selectedSources,
         columns: selectedColumnsBySource,
         showColumn,
+        depth: NaN,
       }
     } else {
       const qSchema = searchParams.get('schema') as string
       const qSources = searchParams.get('sources')?.split(',') || []
       const qActiveSource = searchParams.get('activeSource') as string
       const qSelectedColumns = JSON.parse(searchParams.get('selectedColumns') as string) || {}
-      const qShowColumn = searchParams.get('showColumn') as string === 'true'
+      const qShowColumnExt = searchParams.get('showColumn')
+      const qShowColumn = qShowColumnExt == 'true'
+      const qDepth = parseInt(searchParams.get('depth') as string)
 
       handleFetchSchemasData()
       changeSchema(qSchema)
       changeSources(qSources)
       changeActiveSource(qActiveSource, false)
 
-      if(qShowColumn) setShowColumn(qShowColumn)
+      if(qShowColumnExt) setShowColumn(qShowColumn)
       setSelectedColumnsBySource(qSelectedColumns)
       setCurrentSelectedColumns(qSelectedColumns[qActiveSource] || [])
 
@@ -116,6 +119,7 @@ export const Header = ({handleFetchData}: HeaderProps) => {
         sources: qSources,
         columns: qSelectedColumns,
         showColumn: qShowColumn,
+        depth: qDepth,
       }
     }
     // データ取得中はローディング表示
@@ -198,7 +202,8 @@ export const Header = ({handleFetchData}: HeaderProps) => {
           />
           <button
             type="button"
-            className="border-[1px] border-blue-400 px-3 py-1.5 bg-blue-400 text-s text-white font-semibold rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="border-[1px] border-blue-400 px-3 py-1.5 bg-blue-400 text-s text-white font-semibold
+            rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => submit()}
             disabled={isSubmitDisabled}
           >

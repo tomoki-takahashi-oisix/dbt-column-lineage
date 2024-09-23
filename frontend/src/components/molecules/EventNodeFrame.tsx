@@ -4,6 +4,7 @@ import { faCopy } from '@fortawesome/free-regular-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEllipsisV, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { useSearchParams } from 'next/navigation'
+import { useStore as useStoreZustand } from '@/store/zustand'
 
 interface NodeProps {
   schema: string
@@ -16,6 +17,7 @@ interface NodeProps {
 }
 
 const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, color, isClickableTableName, content, hideNode }) => {
+  const setMessage = useStoreZustand((state) => state.setMessage)
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
 
@@ -33,7 +35,8 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
     e.stopPropagation()
     try {
       await navigator.clipboard.writeText(tableName)
-      alert('Copied to clipboard!: ' + tableName)
+      setMessage('Copied to clipboard!', 'success')
+      setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
     } catch (err) {
       console.error('Failed to copy text: ', err)
     }

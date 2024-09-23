@@ -3,6 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faColumns, faTable } from '@fortawesome/free-solid-svg-icons'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { Edge, useReactFlow } from 'reactflow'
+import { toBlob } from 'html-to-image'
+import { Camera } from 'lucide-react'
 
 const ToggleButtons = () => {
   const { getEdges, setEdges } = useReactFlow()
@@ -12,6 +14,7 @@ const ToggleButtons = () => {
   const columnModeEdges = useStoreZustand((state) => state.columnModeEdges)
   const setColumnModeEdges = useStoreZustand((state) => state.setColumnModeEdges)
   const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
+  const setMessage = useStoreZustand((state) => state.setMessage)
 
   const [activeButton, setActiveButton] = useState('column')
 
@@ -76,31 +79,61 @@ const ToggleButtons = () => {
     setClearNodePosition(true)
   }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges])
 
+  const copyToClipboard = useCallback(async() => {
+    const flowElement = document.querySelector('.react-flow__viewport') as HTMLElement
+
+    const blob = await toBlob(flowElement, { backgroundColor: '#fff', })
+    if (blob) {
+      try {
+        let data = [new window.ClipboardItem({ 'image/png': blob })]
+        await navigator.clipboard.write(data)
+        setMessage('Successfully copied to clipboard!', 'success')
+        setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
+      } catch (err) {
+        setMessage('Failed to copy to clipboard', 'error')
+        console.error('Failed to copy:', err)
+        setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
+      }
+    }
+  }, [])
+
   return (
-    <div className="inline-flex rounded-md shadow-sm" role="group">
-      {buttons.map((button) => (
+    <div className="flex flex-col space-y-4">
+      <div className="flex items-center space-x-4">
+        <div className="inline-flex rounded-md shadow-sm" role="group">
+          {buttons.map((button) => (
+            <button
+              key={button.id}
+              type="button"
+              className={`px-4 py-2 text-sm font-medium border ${
+                activeButton === button.id
+                  ? 'bg-blue-500 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              } ${
+                button.id === buttons[0].id
+                  ? 'rounded-l-lg'
+                  : button.id === buttons[buttons.length - 1].id
+                    ? 'rounded-r-lg'
+                    : ''
+              }`}
+              onClick={() => handleToggleButton(button.id)}
+            >
+              <FontAwesomeIcon icon={button.icon} className="mr-2" />
+              {button.label}
+            </button>
+          ))}
+        </div>
         <button
-          key={button.id}
-          type="button"
-          className={`px-4 py-2 text-sm font-medium border ${
-            activeButton === button.id
-              ? 'bg-blue-500 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-          } ${
-            button.id === buttons[0].id
-              ? 'rounded-l-lg'
-              : button.id === buttons[buttons.length - 1].id
-                ? 'rounded-r-lg'
-                : ''
-          }`}
-          onClick={() => handleToggleButton(button.id)}
+          onClick={copyToClipboard}
+          className="rounded px-4 py-2 text-sm font-medium border bg-blue-500 text-white border-blue-600 flex items-center hover:bg-blue-600 transition-colors duration-200"
+          aria-label="Copy to clipboard"
         >
-          <FontAwesomeIcon icon={button.icon} className="mr-2" />
-          {button.label}
+          <Camera className="mr-2" size={16} />
+          <span>Copy to clipboard</span>
         </button>
-      ))}
+      </div>
     </div>
-  );
-};
+  )
+}
 
 export default ToggleButtons

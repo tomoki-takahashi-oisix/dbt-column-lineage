@@ -1,4 +1,5 @@
 import logging
+import subprocess
 import sys
 from datetime import datetime
 from pytz import timezone
@@ -63,6 +64,48 @@ def get_redirect_url(request: Request):
     if request.url.scheme == 'http' and 'localhost' not in host_url:
         host_url = host_url.replace('http://', 'https://')
     return host_url + 'callback'
+
+
+def extract_model_name(input_path):
+    # パスを分解
+    parts = input_path.split(os.sep)
+
+    # 'models' ディレクトリ以下のパスかどうかを確認
+    if 'models' in parts:
+        models_index = parts.index('models')
+        if len(parts) > models_index + 1:
+            # ファイル名を取得（拡張子を除く）
+            files = parts[-1].split('.')
+            if files[-1] == 'sql':
+                filename = os.path.splitext(parts[-1])[0]
+                return filename
+
+    return None
+
+
+def get_git_changed_files():
+    command = [
+        'git',
+        'diff',
+        '--no-renames',
+        '--name-only',
+        '--diff-filter=ACMRT'
+    ]
+
+    try:
+        # サブプロセスとしてgitコマンドを実行
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+
+        # 出力を行ごとに分割してリストに格納
+        changed_files = result.stdout.strip().split('\n')
+
+        # 空の行を除去（最後の改行による空行への対応）
+        changed_files = [file for file in changed_files if file]
+
+        return changed_files
+    except subprocess.CalledProcessError as e:
+        print(f'An error occurred while running git command: {e}')
+        return []
 
 
 def get_logger(app, logger_name):
