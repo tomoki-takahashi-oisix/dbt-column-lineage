@@ -23,6 +23,7 @@ import { Sidebar } from '@/components/organisms/Sidebar'
 import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import ToggleButtons from '@/components/ui/ToggleButtons'
+import { AlertTriangle, Check, Info } from 'lucide-react'
 
 // TODO: 一旦ここに書いてあるが、この部分がPluginごとに異なる部分になる想定
 export type NodeDataType = {
@@ -38,7 +39,7 @@ export type NodeDataType = {
 interface QueryParams {
   sources: string[]
   columns: {[source: string]: string[]}
-  showColumn: string
+  showColumn: boolean
   depth: Number
 }
 
@@ -60,6 +61,7 @@ export const Cl = () => {
   const rightMaxDepth = useStoreZustand((state) => state.rightMaxDepth)
   const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
   const showColumn = useStoreZustand((state) => state.showColumn)
+  const setShowColumn = useStoreZustand((state) => state.setShowColumn)
   const message = useStoreZustand((state) => state.message)
   const messageType = useStoreZustand((state) => state.messageType)
 
@@ -68,8 +70,9 @@ export const Cl = () => {
   const handleFetchData = useCallback(async ({ sources, columns, showColumn, depth }: QueryParams) => {
     setNodes([])
     setEdges([])
+    setShowColumn(showColumn)
 
-    const query = new URLSearchParams({sources:sources.join(','), columns: JSON.stringify(columns), show_column: showColumn})
+    const query = new URLSearchParams({sources:sources.join(','), columns: JSON.stringify(columns), show_column: showColumn.toString()})
     // depthの指定がない場合
     if (Number.isNaN(depth)) {
       if (showColumn) {
@@ -114,6 +117,17 @@ export const Cl = () => {
     (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
     [setEdges],
   )
+
+  const getMessageIcon = (type: string | null) => {
+    switch (type) {
+      case 'success':
+        return <Check className="inline-block mr-2" size={20} />
+      case 'error':
+        return <AlertTriangle className="inline-block mr-2" size={20} />
+      default:
+        return <Info className="inline-block mr-2" size={20} />
+    }
+  }
 
   // 外部から setRefreshNodesPosition が呼ばれた場合
   useEffect(() => {
@@ -195,13 +209,14 @@ export const Cl = () => {
       </div>
       {message && (
         <div
-          className={`absolute top-4 right-4 px-4 py-3 rounded shadow-md z-50 ${
+          className={`absolute top-4 right-4 px-4 py-3 rounded shadow-md z-50 flex items-center ${
             messageType === 'success' ? 'bg-green-100 border-green-400 text-green-700' :
               messageType === 'error' ? 'bg-red-100 border-red-400 text-red-700' :
                 'bg-blue-100 border-blue-400 text-blue-700'
           }`}
           role="alert"
         >
+          {getMessageIcon(messageType)}
           <span className="block sm:inline">{message}</span>
         </div>
       )}

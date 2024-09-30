@@ -1,9 +1,8 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useState } from 'react'
 import { SchemaSourceColumnSelect } from '@/components/ui/SchemaSourceColumnSelect'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSpinner } from '@fortawesome/free-solid-svg-icons'
 import { useStore as useStoreZustand } from '@/store/zustand'
+import { Loader, Search } from 'lucide-react'
 
 interface HeaderProps {
   handleFetchData: Function,
@@ -22,11 +21,10 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   const [currentSelectedColumns, setCurrentSelectedColumns] = useState<string[]>(['week_ver'])
   // カラムの選択状態の記憶
   const [selectedColumnsBySource, setSelectedColumnsBySource] = useState<{[source: string]: string[]}>({'obt_sales_order': ['week_ver']})
+  const [searchShowColumn, setSearchShowColumn] = useState(true)
 
   const loading = useStoreZustand((state) => state.loading)
   const setLoading = useStoreZustand((state) => state.setLoading)
-  const showColumn = useStoreZustand((state) => state.showColumn)
-  const setShowColumn = useStoreZustand((state) => state.setShowColumn)
   const setColumnModeEdges = useStoreZustand((state) => state.setColumnModeEdges)
 
   const router = useRouter()
@@ -93,7 +91,7 @@ export const Header = ({handleFetchData}: HeaderProps) => {
         schema,
         sources: selectedSources,
         columns: selectedColumnsBySource,
-        showColumn,
+        showColumn: searchShowColumn,
         depth: NaN,
       }
     } else {
@@ -110,7 +108,7 @@ export const Header = ({handleFetchData}: HeaderProps) => {
       changeSources(qSources)
       changeActiveSource(qActiveSource, false)
 
-      if(qShowColumnExt) setShowColumn(qShowColumn)
+      if(qShowColumnExt) setSearchShowColumn(qShowColumn)
       setSelectedColumnsBySource(qSelectedColumns)
       setCurrentSelectedColumns(qSelectedColumns[qActiveSource] || [])
 
@@ -135,11 +133,15 @@ export const Header = ({handleFetchData}: HeaderProps) => {
         sources: selectedSources.join(','),
         activeSource: activeSource,
         selectedColumns: JSON.stringify(selectedColumnsBySource),
-        showColumn: showColumn.toString()
+        showColumn: searchShowColumn.toString()
       })
       router.push(`${pathname}?${query}`)
     }
-  }, [pathname, schema, selectedSources, activeSource, showColumn, selectedColumnsBySource])
+  }, [pathname, schema, selectedSources, activeSource, searchShowColumn, selectedColumnsBySource])
+
+  const handleHeaderShowColumnChange = useCallback((newShowColumn: boolean) => {
+    setSearchShowColumn(newShowColumn)
+  }, [setSearchShowColumn])
 
   const isLineageModeColumnLevel = useCallback(() => {
     return lineageMode === '/cl'
@@ -199,19 +201,21 @@ export const Header = ({handleFetchData}: HeaderProps) => {
             onColumnsChange={handleColumnsChange}
             className="mr-2 w-[60vw]"
             isMulti={isLineageModeColumnLevel()}
+            searchShowColumn={searchShowColumn}
+            onSearchShowColumnChange={handleHeaderShowColumnChange}
           />
           <button
             type="button"
-            className="border-[1px] border-blue-400 px-3 py-1.5 bg-blue-400 text-s text-white font-semibold
-            rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded px-3 py-1.5 text-s font-medium border bg-blue-400 text-white border-blue-400 flex items-center hover:bg-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => submit()}
             disabled={isSubmitDisabled}
           >
             {loading ? (
-              <FontAwesomeIcon icon={faSpinner} spinPulse />
+              <Loader className="animate-spin mr-2" size={16} />
             ) : (
-              <span>Submit</span>
+              <Search className="mr-2" size={16} />
             )}
+            <span>{loading ? 'Loading...' : 'Search'}</span>
           </button>
         </nav>
       </nav>

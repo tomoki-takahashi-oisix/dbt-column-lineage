@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faColumns, faTable } from '@fortawesome/free-solid-svg-icons'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { Edge, useReactFlow } from 'reactflow'
 import { toBlob } from 'html-to-image'
-import { Camera } from 'lucide-react'
+import { Camera, Table, Columns3 } from 'lucide-react'
 
 const ToggleButtons = () => {
   const { getEdges, setEdges } = useReactFlow()
@@ -19,8 +17,8 @@ const ToggleButtons = () => {
   const [activeButton, setActiveButton] = useState('column')
 
   const buttons = [
-    { id: 'table', icon: faTable, label: 'Table' },
-    { id: 'column', icon: faColumns, label: 'Column' },
+    { id: 'table', icon: Table, label: 'Table' },
+    { id: 'column', icon: Columns3, label: 'Column' },
   ]
 
   // showColumnが変更されたときにactiveButtonを変更する
@@ -105,7 +103,7 @@ const ToggleButtons = () => {
             <button
               key={button.id}
               type="button"
-              className={`px-4 py-2 text-sm font-medium border ${
+              className={`px-4 py-2 text-sm font-medium border flex items-center whitespace-nowrap ${
                 activeButton === button.id
                   ? 'bg-blue-500 text-white border-blue-600'
                   : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -118,8 +116,8 @@ const ToggleButtons = () => {
               }`}
               onClick={() => handleToggleButton(button.id)}
             >
-              <FontAwesomeIcon icon={button.icon} className="mr-2" />
-              {button.label}
+              <button.icon className="mr-2" size={16} />
+              <span>{button.label}</span>
             </button>
           ))}
         </div>

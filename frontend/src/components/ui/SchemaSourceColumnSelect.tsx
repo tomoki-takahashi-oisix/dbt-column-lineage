@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Select } from './Select'
-import { ChevronDown, X } from 'lucide-react'
+import { ChevronDown, Columns3, Table } from 'lucide-react'
 import { clsx } from 'clsx'
 
 interface SchemaSourceColumnSelectProps {
@@ -17,12 +17,35 @@ interface SchemaSourceColumnSelectProps {
   onColumnsChange: (columns: string[]) => void
   isMulti: boolean
   className?: string
+  searchShowColumn: boolean
+  onSearchShowColumnChange: (searchShowColumn: boolean) => void
 }
 
 export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
-  = ({ schemas, sources, selectedSources, columns, schema, activeSource, selectedColumns, onSchemaChange, onSourcesChange, onActiveSourceChange, onColumnsChange,isMulti, className }) => {
+  = ({
+       schemas,
+       sources,
+       selectedSources,
+       columns,
+       schema,
+       activeSource,
+       selectedColumns,
+       onSchemaChange,
+       onSourcesChange,
+       onActiveSourceChange,
+       onColumnsChange,
+       isMulti,
+       className,
+       searchShowColumn,
+       onSearchShowColumnChange,
+     }) => {
   const [isOpen, setIsOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const buttons = [
+    { id: 'table', icon: Table, label: 'Table' },
+    { id: 'column', icon: Columns3, label: 'Column' },
+  ]
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -84,6 +107,32 @@ export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
           <div className="grid grid-cols-2 gap-4 p-4" role="menu" aria-orientation="horizontal"
                aria-labelledby="options-menu">
             <div>
+              {isMulti && (
+                <div>
+                  <div className="font-medium text-gray-700 mb-2">Search View Mode</div>
+                  <div className="inline-flex rounded-md shadow-sm mb-4" role="group">
+                    {buttons.map((button) => (
+                      <button
+                        key={button.id}
+                        type="button"
+                        className={`px-4 py-2 text-sm font-medium border flex items-center whitespace-nowrap ${
+                          (searchShowColumn ? 'column' : 'table') === button.id
+                            ? 'bg-blue-500 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                        } ${
+                          button.id === 'table'
+                            ? 'rounded-l-lg'
+                            : 'rounded-r-lg'
+                        }`}
+                        onClick={() => onSearchShowColumnChange(button.id === 'column')}
+                      >
+                        <button.icon className="mr-2" size={16} />
+                        <span>{button.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="font-medium text-gray-700 mb-2">Schema</div>
               <Select
                 options={schemas}
@@ -101,36 +150,38 @@ export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
                 useFormatOptionLabel={true}
               />
             </div>
-            <div>
-              <div className="font-medium text-gray-700 mb-2">Active Source</div>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {selectedSources.map((source) => (
-                  <button
-                    key={source}
-                    className={clsx(
-                      'px-3 py-1 rounded-md text-sm font-medium',
-                      source === activeSource
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
-                    )}
-                    onClick={() => onActiveSourceChange(source)}
-                  >
-                    {source}
-                  </button>
-                ))}
+            {searchShowColumn && (
+              <div>
+                <div className="font-medium text-gray-700 mb-2">Active Source</div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {selectedSources.map((source) => (
+                    <button
+                      key={source}
+                      className={clsx(
+                        'px-3 py-1 rounded-md text-sm font-medium',
+                        source === activeSource
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300',
+                      )}
+                      onClick={() => onActiveSourceChange(source)}
+                    >
+                      {source}
+                    </button>
+                  ))}
+                </div>
+                <div className="font-medium text-gray-700 mb-2">Columns</div>
+                {columns[activeSource] && (
+                  <Select
+                    options={columns[activeSource]}
+                    value={selectedColumns.map(c => ({ label: c, value: c }))}
+                    onChange={handleColumnsChange}
+                    className="mb-2"
+                    isMulti={isMulti}
+                    useFormatOptionLabel={true}
+                  />
+                )}
               </div>
-              <div className="font-medium text-gray-700 mb-2">Columns</div>
-              {columns[activeSource] && (
-                <Select
-                  options={columns[activeSource]}
-                  value={selectedColumns.map(c => ({ label: c, value: c }))}
-                  onChange={handleColumnsChange}
-                  className="mb-2"
-                  isMulti={isMulti}
-                  useFormatOptionLabel={true}
-                />
-              )}
-            </div>
+            )}
           </div>
         </div>
       )}
