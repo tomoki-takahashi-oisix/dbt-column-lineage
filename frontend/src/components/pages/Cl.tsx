@@ -219,7 +219,7 @@ export const Cl = () => {
           role="alert"
         >
           {getMessageIcon(messageType)}
-          <div className="sm:inline text-sm">
+          <div className="sm:inline text-xs max-w-xl">
             <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{message}</Markdown>
           </div>
         </div>
