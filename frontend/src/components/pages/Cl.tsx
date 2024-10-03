@@ -24,6 +24,8 @@ import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import ToggleButtons from '@/components/ui/ToggleButtons'
 import { AlertTriangle, Check, Info } from 'lucide-react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 // TODO: 一旦ここに書いてあるが、この部分がPluginごとに異なる部分になる想定
 export type NodeDataType = {
@@ -217,7 +219,9 @@ export const Cl = () => {
           role="alert"
         >
           {getMessageIcon(messageType)}
-          <span className="block sm:inline">{message}</span>
+          <div className="sm:inline text-sm">
+            <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{message}</Markdown>
+          </div>
         </div>
       )}
 

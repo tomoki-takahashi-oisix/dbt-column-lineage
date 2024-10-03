@@ -133,11 +133,11 @@ interface CteFlowProps {
 
 function searchTextCodeMirror(view: EditorView, searchQuery: string) {
   const cursor = new SearchCursor(view.state.doc, searchQuery)
-  cursor.next()
-  if (cursor.value.from == 0) {
-    return null
+  const matches = []
+  for (let n = cursor.next(); !n.done; n = cursor.next()) {
+    matches.push({from: n.value.from, to: n.value.to})
   }
-  return cursor.value
+  return matches
 }
 
 const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPositioned, codeMirrorRef, lineageTableColumns}: CteFlowProps) => {
@@ -158,13 +158,16 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     // await handleFetchData({source: searchParams.get('source') as string})
   }, [searchParams])
 
-  const goToCtePage = useCallback((schema: string, source: string, column: string) => {
-    const query = new URLSearchParams({ schema, source})
-    if (column) {
-      // null の場合がある
-      query.set('column', column)
+  const goToCtePage = useCallback((schema: string, sources: string, columns: string) => {
+    const activeSource = sources
+    console.log(sources, columns)
+    const params = new URLSearchParams({schema, sources, activeSource})
+    if (columns) {
+      const selectedColumns = JSON.stringify({ [sources]: [columns] })
+      params.set('selectedColumns', selectedColumns)
     }
-    router.push(`/cte?${query.toString()}`)
+    // router.push(`/cte?${params.toString()}`)
+    window.open(`/cte?${params.toString()}`, '_blank')
   }, [searchParams])
 
   const codeJump = useCallback((node: Node) => {
@@ -178,12 +181,12 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     }
     const view: EditorView = codeMirrorRef.current.view
     const searchQuery = `${node.data.label} as (`
-    const cursorValue = searchTextCodeMirror(view, searchQuery)
-    if (!cursorValue) return
+    const cursorValues = searchTextCodeMirror(view, searchQuery)
+    if (!cursorValues) return
     view?.dispatch({
-      selection: { head: cursorValue.from, anchor: cursorValue.to },
+      selection: { head: cursorValues[0].from, anchor: cursorValues[0].to },
       scrollIntoView: true,
-      effects: EditorView.scrollIntoView(cursorValue.from, { x: 'start', y: 'start' })
+      effects: EditorView.scrollIntoView(cursorValues[0].from, { x: 'start', y: 'start' })
     })
   }, [searchParams])
 
@@ -243,22 +246,16 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     const highlightDecoration = Decoration.mark({
       class: 'bg-yellow-200'
     })
-    for (const table in lineageTableColumns) {
-      const meta = lineageTableColumns[table]
-      for (const column of meta['columns'] as string[]) {
-        // table_alias.column のハイライト
-        const searchQuery = `${meta['alias']}.${column}` || ''
-        const cursorValue = searchTextCodeMirror(codeMirrorRef.current.view, searchQuery)
-        if (!cursorValue) continue
-
+    // 表示カラムのハイライト
+    const source = searchParams.get('sources')
+    const selectedColumns = searchParams.get('selectedColumns')
+    if (source && selectedColumns) {
+      const parsedSelectedColumns = JSON.parse(selectedColumns)
+      const searchQuery = parsedSelectedColumns[source][0] || ''
+      const cursorValues = searchTextCodeMirror(codeMirrorRef.current.view, searchQuery)
+      for (let cursorValue of cursorValues) {
         highlightDecorationRanges.push(highlightDecoration.range(cursorValue.from, cursorValue.to))
       }
-      // db.table のハイライト
-      const searchQuery = `${meta['db']}.${table}` || ''
-      const cursorValue = searchTextCodeMirror(codeMirrorRef.current.view, searchQuery)
-      if (!cursorValue) continue
-
-      highlightDecorationRanges.push(highlightDecoration.range(cursorValue.from, cursorValue.to))
     }
     // console.log(highlightDecorationRanges)
     codeMirrorRef.current.view.dispatch({
@@ -355,7 +352,7 @@ export const Cte = () => {
     setDescription(data['description'])
     setColumns(data['columns'])
     setLineageTableColumns(data['lineage_table_columns'])
-    setNodesPositioned(false)
+    setTimeout(()=>setNodesPositioned(false),100)
     handleClickLineageMode()
 
     return true

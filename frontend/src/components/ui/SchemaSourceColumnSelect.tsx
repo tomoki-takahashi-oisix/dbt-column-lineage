@@ -49,6 +49,8 @@ export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      // clear buttonがクリックされた場合は除外
+      if (['svg', 'path'].includes((event.target as Element).tagName.toLowerCase())) return
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
@@ -76,7 +78,11 @@ export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
     }
   }
 
-  const handleColumnsChange = (selected: any) => {
+  const handleColumnsChange = (selected: any, actionTypes: any) => {
+    if (actionTypes.action === 'clear') {
+      onColumnsChange([])
+      return
+    }
     if (isMulti) {
       const newColumns = selected.map((c: { value: string, label: string }) => c.value)
       onColumnsChange(newColumns)
@@ -177,6 +183,7 @@ export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
                     onChange={handleColumnsChange}
                     className="mb-2"
                     isMulti={isMulti}
+                    isClearable={!isMulti}
                     useFormatOptionLabel={true}
                   />
                 )}

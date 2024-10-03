@@ -107,13 +107,14 @@ type SelectProps = {
   options: Array<Option>
   className?: string
   clearValue?: () => void
+  isClearable?: boolean
   isMulti?: boolean
   value?: any
   onChange?: (d: any, actionTypes: any) => void
   useFormatOptionLabel?: boolean
 }
 
-export const Select = ({ options, className, isMulti = false, value, onChange, useFormatOptionLabel = false }: SelectProps) => {
+export const Select = ({ options, className, isClearable = false, isMulti = false, value, onChange, useFormatOptionLabel = false }: SelectProps) => {
   return (
     <SelectComponent
       instanceId={useId()}
@@ -121,6 +122,7 @@ export const Select = ({ options, className, isMulti = false, value, onChange, u
       options={options}
       isMulti={isMulti}
       value={value}
+      isClearable={isClearable}
       onChange={onChange}
       classNames={{ ...classNames }}
       className={clsx(className)}

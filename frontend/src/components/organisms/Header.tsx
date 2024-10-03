@@ -162,17 +162,21 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   // submitボタンのdisabled制御
   useEffect(() => {
     if (schema && selectedSources.length > 0) {
-      for (const source of selectedSources) {
-        if (isLineageModeColumnLevel() &&(!selectedColumnsBySource[source] || selectedColumnsBySource[source].length === 0)) {
-          setIsSubmitDisabled(true)
-          return
+      if (isLineageModeColumnLevel() && searchShowColumn) {
+        for (const source of selectedSources) {
+          if (!selectedColumnsBySource[source] || selectedColumnsBySource[source].length === 0) {
+            setIsSubmitDisabled(true)
+            return
+          }
         }
+        setIsSubmitDisabled(false)
+      } else {
+        setIsSubmitDisabled(false)
       }
-      setIsSubmitDisabled(false)
     } else {
       setIsSubmitDisabled(true)
     }
-  }, [schema, selectedSources, activeSource, selectedColumnsBySource])
+  }, [schema, selectedSources, activeSource, selectedColumnsBySource, searchShowColumn])
 
   return (
     <header className="bg-white border-b-[1px]">
