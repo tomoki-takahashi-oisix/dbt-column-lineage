@@ -43,6 +43,21 @@ class DbtSqlglot:
         self.logger = logger
         self.dialect = 'snowflake'
 
+    def project_name(self):
+        self.logger.info(self.dbt_metadata)
+        return self.dbt_metadata['project_name']
+
+    def schema_by_source(self, source: str):
+        dbt_node = self.__get_dbt_node(source)
+        return dbt_node.get('schema')
+
+    def columns_by_source(self, source: str):
+        dbt_node = self.__get_dbt_node(source)
+        dbt_catalog = self.__get_dbt_catalog(source)
+        dbt_columns = list(dbt_catalog.get('columns', dbt_node.get('columns', {})).keys())
+        lowercase_dbt_columns = [s.lower() for s in dbt_columns]
+        return lowercase_dbt_columns
+
     def list_schemas(self):
         schemas = []
         ret = []

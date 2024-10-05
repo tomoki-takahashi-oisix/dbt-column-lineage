@@ -163,13 +163,19 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   useEffect(() => {
     if (schema && selectedSources.length > 0) {
       if (isLineageModeColumnLevel() && searchShowColumn) {
+        let found = false
         for (const source of selectedSources) {
-          if (!selectedColumnsBySource[source] || selectedColumnsBySource[source].length === 0) {
-            setIsSubmitDisabled(true)
-            return
+          if (selectedColumnsBySource[source] && selectedColumnsBySource[source].length !== 0) {
+            found = true
+            break
           }
         }
-        setIsSubmitDisabled(false)
+        if (found) {
+          // 1つでも選択されたカラムがあればsubmit可能
+          setIsSubmitDisabled(false)
+        } else {
+          setIsSubmitDisabled(true)
+        }
       } else {
         setIsSubmitDisabled(false)
       }

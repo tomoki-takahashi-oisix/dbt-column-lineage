@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import os
+import urllib
 from pathlib import Path
 from urllib import parse
 from urllib.parse import urlencode
@@ -19,7 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from dbt_column_lineage.constants import USE_OAUTH, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_ROUTE
 from dbt_column_lineage.lineage import DbtSqlglot
 from dbt_column_lineage.looker import Looker
-from dbt_column_lineage.utils import get_logger, get_redirect_url, get_git_changed_files, extract_model_name
+from dbt_column_lineage.utils import get_logger, get_redirect_url, get_diff_to_params
 
 import typer
 
@@ -171,7 +172,7 @@ async def find_lineage(
     if show_column:
         parsed_columns = json.loads(columns)
         for source in sources.split(','):
-            for column in parsed_columns.get(source):
+            for column in parsed_columns.get(source, ['']):
                 dbt_sqlglot.column_lineage(source, column.upper(), reverse)
     else:
         for source in sources.split(','):
@@ -218,18 +219,23 @@ app.mount('/', StaticFiles(directory=str(static_files_path), html=True), name='s
 
 @cli.command()
 def run_params():
-    changed_files = get_git_changed_files()
-    sources = []
-    for file in changed_files:
-        source = extract_model_name(file)
-        if source:
-            sources.append(source)
-    if len(sources) != 0:
-        converted_sources = 'sources=' + parse.quote(','.join(sources))
+    dbt_sql_glot = DbtSqlglot(logger)
+    sources, selected_columns = get_diff_to_params(dbt_sql_glot)
 
-        logger.info(f'http://127.0.0.1:5000/cl?{converted_sources}&showColumn=false&depth=0')
+    if len(sources) != 0:
+        first_schema = dbt_sql_glot.schema_by_source(sources[0])
+        converted_sources = f'schema={first_schema}&sources={parse.quote(",".join(sources))}'
+        show_column = 'false'
+
+        if len(selected_columns) != 0:
+            converted_columns = urllib.parse.quote(json.dumps(selected_columns))
+            additional_info = f'&activeSource={sources[0]}&selectedColumns={converted_columns}'
+            converted_sources += additional_info
+            show_column = 'true'
+
+        print(f'http://127.0.0.1:5000/cl?{converted_sources}&showColumn={show_column}&depth=0')
     else:
-        logger.info('http://127.0.0.1:5000')
+        print('model files diff not found')
     run()
 
 @cli.command()
