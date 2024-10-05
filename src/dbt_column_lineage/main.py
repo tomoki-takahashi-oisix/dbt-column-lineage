@@ -231,7 +231,6 @@ def run_params():
             converted_columns = urllib.parse.quote(json.dumps(selected_columns))
             additional_info = f'&activeSource={sources[0]}&selectedColumns={converted_columns}'
             converted_sources += additional_info
-            show_column = 'true'
 
         print(f'http://127.0.0.1:5000/cl?{converted_sources}&showColumn={show_column}&depth=0')
     else:
