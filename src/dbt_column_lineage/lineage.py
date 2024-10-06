@@ -295,7 +295,7 @@ class DbtSqlglot:
                 break
         return element
 
-    def __get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: []) -> dict:
+    def __get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: [], add_info=False) -> dict:
         # MappingSchema にテーブル情報を追加
         sqlglot_db_schema = MappingSchema(dialect=self.dialect, normalize=False)
         for s in depends_on_table_info:
@@ -331,16 +331,17 @@ class DbtSqlglot:
                 self.logger.error(f'lineage error. source={source}, column={column}')
                 continue
 
+            info = {}
             for node in lin.walk():
                 if isinstance(node.expression, exp.Table):
                     label = f'{node.expression.this}'
                     # 配下のデータがなければ最後とみなす
-                    # self.logger.info(label)
+                    self.logger.debug(f'label: {label}')
                     if len(node.downstream) == 0:
                         labels.add(label)
                 if node.name != '*' and not isinstance(node.expression, exp.Table):
                     cte = node.expression.sql()
-                    # self.logger.info(cte)
+                    self.logger.debug(cte)
                     try:
                         parsed_sql = parse_one(cte, dialect=self.dialect)
                         cl = parsed_sql.find_all(exp.Column)
@@ -348,11 +349,15 @@ class DbtSqlglot:
                         self.logger.error(f'cte parse error. source={source}, column={column}, cte={cte}')
                         cl = []
                     for c in cl:
-                        # self.logger.info(f'alias_or_name={c.alias_or_name}')
+                        if add_info:
+                            table = node.expression.parent.find(exp.Table)
+                            info[table.this.name.lower()] = f'{c.alias_or_name.lower()}'
+                            self.logger.debug(f'{table.this.name.lower()}: {c.alias_or_name.lower()}')
+                        self.logger.debug(f'alias_or_name={c.alias_or_name}')
                         replace_columns.add(c.alias_or_name)
-                    # if self.replace_columns:
-                    #     self.logger.info(f'{node.name} =>{self.replace_columns}')
             ret[column] = {'labels': list(labels), 'columns': list(replace_columns)}
+            if add_info:
+                ret[column]['add_info'] = info
         self.logger.info(f'{source}, {ret}')
         return ret
 
@@ -492,7 +497,7 @@ class DbtSqlglot:
                 self.logger.debug(f'last node: {after_base_source}')
                 prev_node['data']['last'] = True
 
-    def __reverse_column_lineage(self, source: str, column: str) -> dict:
+    def __reverse_column_lineage(self, source: str, column: str):
         dbt_node = self.__get_dbt_node(source)
         unique_id = dbt_node.get('unique_id')
         refs = self.dbt_manifest_child_map.get(unique_id, [])
@@ -570,18 +575,19 @@ class DbtSqlglot:
         dependencies = {}
         lineage_tables = []
         lineage_columns = []
+        lineage_info = {}
         lineage_table_columns = {}
 
         if len(columns) > 0:
             depends_on_table_info = self.__get_depends_on_table_info(dbt_depends_on_nodes)
-            items = self.__get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info)
-            self.logger.debug(items)
+            items = self.__get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info, True)
 
             for item in items.values():
                 for label in item['labels']:
                     lineage_tables.append(label.lower())
                 for column in item['columns']:
                     lineage_columns.append(column.lower())
+                lineage_info = item['add_info']
 
         try:
             parsed_sql = parse_one(compiled_code, dialect=self.dialect)
@@ -593,9 +599,15 @@ class DbtSqlglot:
         for cte in ctes:
             dependencies[cte.alias_or_name] = []
 
+            info_label = lineage_info.get(cte.alias_or_name)
+            if info_label:
+                data_label = f'{cte.alias_or_name} ({info_label})'
+            else:
+                data_label = cte.alias_or_name
+
             self.nodes.append({
                 'id': cte.alias_or_name,
-                'data': {'label': cte.alias_or_name},
+                'data': {'label': data_label},
                 'position': {'x': 0, 'y': 0},
             })
 

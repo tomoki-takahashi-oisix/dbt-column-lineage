@@ -12,11 +12,11 @@ Run the following command:
 # go to your dbt project directory
 cd your-dbt-project/
 
-# generate the manifest.json and catalog.json files
-dbt docs generate 
-
 # edit your model file
 vi models/test.sql
+
+# generate the manifest.json and catalog.json files
+dbt docs generate 
 
 # Launch dbt-column-lineage with test.sql as the initial model
 dbt-coloumn-lineage run-params
