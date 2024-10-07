@@ -138,10 +138,10 @@ def _extract_model_name(input_path):
             dir_index = parts.index(target_dir)
             if len(parts) > dir_index + 1:
                 # ファイル名を取得（拡張子を除く）
-                filename = os.path.splitext(parts[-1])[0]
+                filename = parts[-1]
                 if filename.endswith('.sql'):
                     filename = os.path.splitext(filename)[0]
-                return filename
+                    return filename
 
     return None
 
