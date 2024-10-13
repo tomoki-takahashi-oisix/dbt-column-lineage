@@ -89,8 +89,8 @@ const EventNodeColumns: React.FC<EventNodeColumnsProps> = ({ schema, tableName, 
       {isOpen && nodeWidth && (
         <div
           ref={columnListRef}
-          className="mt-2 max-h-60 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
-          style={{ width: `${nodeWidth}px` }}
+          className="nowheel mt-2 max-h-60 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200"
+          style={{ width: `${nodeWidth}px`, overflow: 'auto' }}
           onWheel={(e) => e.stopPropagation()}
         >
           {fetching ? (

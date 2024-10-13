@@ -144,16 +144,16 @@ class DbtSqlglot:
         if compiled_code is None:
             self.logger.info('compiled_code is None')
             return None
-        lineage_table_columns = self.__cte_dependency_impl(dbt_depends_on_nodes, compiled_code, source, columns)
+        entire_meta = self.__cte_dependency_impl(dbt_depends_on_nodes, compiled_code, source, columns)
         return {
             'edges': self.edges,
             'nodes': self.nodes,
-            'table_name': table_name,
+            'tableName': table_name,
             'materialized': materialized,
             'query': compiled_code,
             'description': description,
             'columns': dbt_columns,
-            'lineage_table_columns': lineage_table_columns
+            'entireMeta': entire_meta,
         }
 
     def __get_dbt_columns(self, dbt_node):
@@ -295,7 +295,7 @@ class DbtSqlglot:
                 break
         return element
 
-    def __get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: [], add_info=False) -> dict:
+    def __get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: [], need_meta=False) -> dict:
         # MappingSchema にテーブル情報を追加
         sqlglot_db_schema = MappingSchema(dialect=self.dialect, normalize=False)
         for s in depends_on_table_info:
@@ -331,7 +331,7 @@ class DbtSqlglot:
                 self.logger.error(f'lineage error. source={source}, column={column}')
                 continue
 
-            info = {}
+            meta = []
             for node in lin.walk():
                 if isinstance(node.expression, exp.Table):
                     label = f'{node.expression.this}'
@@ -340,7 +340,7 @@ class DbtSqlglot:
                     if len(node.downstream) == 0:
                         labels.add(label)
                 if node.name != '*' and not isinstance(node.expression, exp.Table):
-                    cte = node.expression.sql()
+                    cte = node.expression.sql(dialect=self.dialect)
                     self.logger.debug(cte)
                     try:
                         parsed_sql = parse_one(cte, dialect=self.dialect)
@@ -349,15 +349,39 @@ class DbtSqlglot:
                         self.logger.error(f'cte parse error. source={source}, column={column}, cte={cte}')
                         cl = []
                     for c in cl:
-                        if add_info:
-                            table = node.expression.parent.find(exp.Table)
-                            info[table.this.name.lower()] = f'{c.alias_or_name.lower()}'
-                            self.logger.debug(f'{table.this.name.lower()}: {c.alias_or_name.lower()}')
                         self.logger.debug(f'alias_or_name={c.alias_or_name}')
                         replace_columns.add(c.alias_or_name)
+                # CTEリネージ用の追加情報
+                if need_meta and not isinstance(node.expression, exp.Table):
+                    if node.reference_node_name == '':
+                        # 最初のselect * from finalは無視
+                        continue
+
+                    node_downstream_alias_names = []
+                    node_downstream_table_sources = []
+                    for d in node.downstream:
+                        if isinstance(d.expression, exp.Table):
+                            node_downstream_table_sources.append({'schema': d.expression.db.lower(),'table': d.expression.name.lower()})
+                            parsed_column = parse_one(d.name, dialect=self.dialect)
+                            node_downstream_alias_names.append(parsed_column.alias_or_name.lower())
+                        else:
+                            node_downstream_alias_names.append(d.expression.alias_or_name.lower())
+
+                    # カラム名が一致したら次のカラムをリセット
+                    column_name = node.expression.alias_or_name.lower()
+                    if column_name == node_downstream_alias_names[0]:
+                        node_downstream_alias_names = []
+                    mt = {
+                        'column': node.expression.alias_or_name.lower(),
+                        'nextColumns': node_downstream_alias_names,
+                        'nextSources': node_downstream_table_sources,
+                        'reference': node.reference_node_name.lower()
+                    }
+                    meta.append(mt)
+
             ret[column] = {'labels': list(labels), 'columns': list(replace_columns)}
-            if add_info:
-                ret[column]['add_info'] = info
+            if need_meta:
+                ret[column]['meta'] = meta
         self.logger.info(f'{source}, {ret}')
         return ret
 
@@ -372,6 +396,13 @@ class DbtSqlglot:
         for x in arr:
             if x[key] == value:
                 return x
+
+    def __find_all(self, arr: [], key: str, value: str):
+        ret = []
+        for x in arr:
+            if x[key] == value:
+                ret.append(x)
+        return ret
 
     def __find_with_subkey(self, arr: [], key: str, subkey: str, value: str):
         for x in arr:
@@ -571,23 +602,20 @@ class DbtSqlglot:
         self.edges = ret_edges
         self.nodes = ret_nodes
 
-    def __cte_dependency_impl(self, dbt_depends_on_nodes: [], compiled_code: str, source: str, columns: []) -> dict:
+    def __cte_dependency_impl(self, dbt_depends_on_nodes: [], compiled_code: str, source: str, columns: []) -> list:
         dependencies = {}
         lineage_tables = []
-        lineage_columns = []
-        lineage_info = {}
-        lineage_table_columns = {}
+        lineage_meta = []
 
         if len(columns) > 0:
             depends_on_table_info = self.__get_depends_on_table_info(dbt_depends_on_nodes)
             items = self.__get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info, True)
 
-            for item in items.values():
-                for label in item['labels']:
-                    lineage_tables.append(label.lower())
-                for column in item['columns']:
-                    lineage_columns.append(column.lower())
-                lineage_info = item['add_info']
+            # 現状columns は1つのみ
+            item = items.get(columns[0].upper(), {'labels': [], 'meta': {}})
+            for label in item['labels']:
+                lineage_tables.append(label.lower())
+            lineage_meta = item['meta']
 
         try:
             parsed_sql = parse_one(compiled_code, dialect=self.dialect)
@@ -598,18 +626,32 @@ class DbtSqlglot:
 
         for cte in ctes:
             dependencies[cte.alias_or_name] = []
+            # reference が一致するすべての meta 情報を取得
+            meta = self.__find_all(lineage_meta, 'reference', cte.alias_or_name)
 
-            info_label = lineage_info.get(cte.alias_or_name)
-            if info_label:
-                data_label = f'{cte.alias_or_name} ({info_label})'
-            else:
-                data_label = cte.alias_or_name
+            # CTE の各要素を抽出
+            elements = {
+                'groups': [ele.sql() for ele in cte.find_all(exp.Group)],
+                'havings': [ele.sql() for ele in cte.find_all(exp.Having)],
+                'wheres': [ele.sql() for ele in cte.find_all(exp.Where)],
+                'unions': [ele.sql() for ele in cte.find_all(exp.Union)],
+                'joins': [ele.sql() for ele in cte.find_all(exp.Join)]
+            }
 
-            self.nodes.append({
+            # ノードデータの作成
+            node_data = {
                 'id': cte.alias_or_name,
-                'data': {'label': data_label},
+                'type': 'cte',
+                'data': {
+                    'label': cte.alias_or_name,
+                    'nodeType': 'CTE',
+                    'meta': meta,
+                    **elements
+                },
                 'position': {'x': 0, 'y': 0},
-            })
+            }
+
+            self.nodes.append(node_data)
 
             query = cte.this.sql()
             try:
@@ -620,52 +662,14 @@ class DbtSqlglot:
                 tables = []
 
             for table in tables:
-                has_db = False
-                if table.db and table.catalog:
-                    if table.name in lineage_tables and len(lineage_columns) > 0:
-                        dc = self.__get_dbt_catalog(table.name)
-                        dn = self.__get_dbt_node(table.name)
-                        # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
-                        dn_columns = list(dc.get('columns', dn.get('columns', {})).keys())
-
-                        # dbt の定義に該当するカラムだけに絞り込む
-                        filtered_columns = self.__get_columns(dn_columns, lineage_columns)
-
-                        lineage_table_columns[table.name] = {'alias': table.alias, 'db': table.db, 'columns': filtered_columns, 'table.is_star': table.is_star}
-                        for filtered_column in filtered_columns:
-                            label = f'{table.name} ({filtered_column})'
-                            self.nodes.append({
-                                'id': label,
-                                'data': {'label': label, 'db': table.db, 'table': table.name, 'column': filtered_column},
-                                'position': {'x': 0, 'y': 0},
-                                'style': {'background': '#ffccaa'},
-                                'type': 'input'
-                            })
-                            dependencies[cte.alias_or_name].append({'name': label, 'has_db': has_db})
-                    else:
-                        self.nodes.append({
-                            'id': table.name,
-                            'data': {'label': table.name, 'db': table.db, 'table': table.name},
-                            'position': {'x': 0, 'y': 0},
-                            'style': {'background': '#aaccff'},
-                            'type': 'input'
-                        })
-                    has_db = True
-
-                dependencies[cte.alias_or_name].append({'name': table.name, 'has_db': has_db})
+                dependencies[cte.alias_or_name].append({'name': table.name})
 
         for node in dependencies:
             for dependency in dependencies[node]:
                 dep = dependency['name']
-                has_db = dependency['has_db']
                 edge_id = f'{node}-{dep}'
                 if not self.__find(self.edges, 'id', edge_id) and node and dep and node != dep:
-                    self.edges.append({
-                        'id': edge_id,
-                        'source': dep,
-                        'target': node,
-                        'has_db': has_db,
-                        # 'type': 'smoothstep',
-                    })
-        return lineage_table_columns
+                    self.edges.append({'id': edge_id, 'source': dep,'target': node, 'markerStart': {'type': 'arrowclosed', 'width': 16, 'height': 16}})
+
+        return lineage_meta
 

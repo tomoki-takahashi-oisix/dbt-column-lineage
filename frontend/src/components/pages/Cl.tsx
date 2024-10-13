@@ -27,17 +27,6 @@ import { AlertTriangle, Check, Info } from 'lucide-react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-// TODO: 一旦ここに書いてあるが、この部分がPluginごとに異なる部分になる想定
-export type NodeDataType = {
-  name: string
-  color: string
-  schema: string
-  materialized: string
-  columns: string[]
-  first: boolean
-  last: boolean
-}
-
 interface QueryParams {
   sources: string[]
   columns: {[source: string]: string[]}
@@ -148,12 +137,10 @@ export const Cl = () => {
     setOptions({ rankdir: 'RL' })
   }, [])
 
-  const nodeTypes = useMemo(
-    () => ({
-      eventNode: (props: EventNodeProps) => <EventNode {...props} />
-    }),
-    [],
-  )
+  const nodeTypes = useMemo(() => ({
+    eventNode: (props: EventNodeProps) => <EventNode {...props} />
+  }), [])
+
   return (
     <div>
       <Header handleFetchData={handleFetchData} />

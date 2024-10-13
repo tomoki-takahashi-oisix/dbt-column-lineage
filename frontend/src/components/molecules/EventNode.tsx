@@ -2,7 +2,6 @@
 import React, { useCallback } from 'react'
 import { NodeProps, Position } from 'reactflow'
 import { useStore as useStoreZustand } from '@/store/zustand'
-import { NodeDataType } from '@/components/pages/Cl'
 import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
 import EventNodeHandle from '@/components/molecules/EventNodeHandle'
 import EventNodeFrame from '@/components/molecules/EventNodeFrame'
@@ -12,6 +11,17 @@ import TableNodeHandle from '@/components/molecules/TableNodeHandle'
 export interface EventNodeProps extends NodeProps {
   data: NodeDataType
 }
+
+interface NodeDataType {
+  name: string
+  color: string
+  schema: string
+  materialized: string
+  columns: string[]
+  first: boolean
+  last: boolean
+}
+
 
 export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
   const { addSingleLineage, addReverseLineage, hideNode,
