@@ -1,15 +1,15 @@
 export const getColorClassForMaterialized = (type: string): string => {
   switch (type) {
     case 'table':
-      return 'bg-purple-200'
+      return 'bg-[#E6E6FA]'
     case 'view':
-      return 'bg-pink-200'
+      return 'bg-[#F0E6FF]'
     case 'incremental':
-      return 'bg-blue-200'
+      return 'bg-[#ADD8E6]'
     case 'snapshot':
-      return 'bg-sky-200'
+      return 'bg-indigo-200'
     case 'seed':
-      return 'bg-fuchsia-200'
+      return 'bg-violet-200'
     default:
       return 'bg-gray-200'
   }
