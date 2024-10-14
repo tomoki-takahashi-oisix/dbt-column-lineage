@@ -370,7 +370,7 @@ class DbtSqlglot:
 
                     # カラム名が一致したら次のカラムをリセット
                     column_name = node.expression.alias_or_name.lower()
-                    if column_name == node_downstream_alias_names[0]:
+                    if len(node_downstream_alias_names) > 0 and column_name == node_downstream_alias_names[0]:
                         node_downstream_alias_names = []
                     mt = {
                         'column': node.expression.alias_or_name.lower(),

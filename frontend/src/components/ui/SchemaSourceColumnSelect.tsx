@@ -97,16 +97,25 @@ export const SchemaSourceColumnSelect: React.FC<SchemaSourceColumnSelectProps>
         <button
           type="button"
           className={clsx(
-            'inline-flex justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500',
+            'inline-flex justify-between w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500',
             className,
           )}
           onClick={() => setIsOpen(!isOpen)}
         >
-          <span>{schema} | {activeSource} | {selectedColumns.join(', ')}</span>
+          <span className={schema || activeSource || selectedColumns.length > 0 ? 'text-gray-700' : 'text-gray-400'}>
+            {schema || activeSource || selectedColumns.length > 0 ? (
+              <>
+                {schema && `${schema}`}
+                {activeSource && (schema ? ` | ${activeSource}` : activeSource)}
+                {selectedColumns.length > 0 && (schema || activeSource ? ' | ' : '') + selectedColumns.join(', ')}
+              </>
+            ) : (
+              'Select search model'
+            )}
+          </span>
           <ChevronDown className="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
         </button>
       </div>
-
       {isOpen && (
         <div
           className="origin-top-left absolute left-0 mt-2 w-[900px] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
