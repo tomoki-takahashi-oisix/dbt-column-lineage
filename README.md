@@ -18,6 +18,9 @@ vi models/test.sql
 # generate the manifest.json and catalog.json files
 dbt docs generate 
 
+# set the environment variable for the dialect you are using
+export SQLGLOT_DIALECT=snowflake
+
 # Launch dbt-column-lineage with test.sql as the initial model
 dbt-coloumn-lineage run-params
 ```

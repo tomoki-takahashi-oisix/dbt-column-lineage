@@ -68,9 +68,9 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
       schema={data.schema}
       tableName={data.name}
       selected={selected}
-      color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
       hideNode={hideNode}
       isClickableTableName={true}
+      materialized={data.materialized}
       content={
         <>
           {(firstNodeTable != data.name) && (
@@ -106,9 +106,9 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
       schema={data.schema}
       tableName={data.name}
       selected={selected}
-      color={data.materialized === 'incremental' ? '#ADD8E6' : 'Lavender'}
       hideNode={hideNode}
       isClickableTableName={false}
+      materialized={data.materialized}
       content={
         <>
           {/* table => column 切替時に残るハンドル */}

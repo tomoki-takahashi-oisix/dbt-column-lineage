@@ -230,3 +230,10 @@ def _source_to_columns(file, project_name, dialect, exists_columns):
                         columns.append(change.expression.alias_or_name)
                         break
     return columns
+
+def startup_dialect_check():
+    if 'SQLGLOT_DIALECT' not in os.environ:
+        dialect = 'snowflake'
+        os.environ['SQLGLOT_DIALECT'] = dialect
+        print(f'Warning: SQLGLOT_DIALECT not set. Using default: {dialect}')
+    print(f'Using dialect: {os.environ['SQLGLOT_DIALECT']}')

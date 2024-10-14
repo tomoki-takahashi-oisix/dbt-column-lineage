@@ -26,6 +26,7 @@ import ToggleButtons from '@/components/ui/ToggleButtons'
 import { AlertTriangle, Check, Info } from 'lucide-react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
 
 interface QueryParams {
   sources: string[]
@@ -89,11 +90,6 @@ export const Cl = () => {
     return true
   }, [searchParams])
 
-  const changeRankDir = useCallback(async (value: string) => {
-    setOptions({ rankdir: value })
-    setNodesPositioned(false)
-  }, [searchParams])
-
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
       setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -120,6 +116,10 @@ export const Cl = () => {
     }
   }
 
+  const nodeTypes = useMemo(() => ({
+    eventNode: (props: EventNodeProps) => <EventNode {...props} />
+  }), [])
+
   // 外部から setRefreshNodesPosition が呼ばれた場合
   useEffect(() => {
     if (clearNodePosition) {
@@ -136,10 +136,6 @@ export const Cl = () => {
   useEffect(() => {
     setOptions({ rankdir: 'RL' })
   }, [])
-
-  const nodeTypes = useMemo(() => ({
-    eventNode: (props: EventNodeProps) => <EventNode {...props} />
-  }), [])
 
   return (
     <div>
@@ -187,6 +183,21 @@ export const Cl = () => {
                     )}
                   </div>
                 </div>
+              </Panel>
+              <Panel position="top-right">
+                { nodes.length > 0 && <div className="p-1 rounded">
+                  <div className="flex items-center space-x-2">
+                    {materializedTypes.map((type) => (
+                      <div key={type} className="flex items-center">
+                        <div
+                          className={`w-4 h-4 mr-1 rounded-sm ${getColorClassForMaterialized(type)}`}
+                        ></div>
+                        <span className="text-[10px] whitespace-nowrap text-gray-700">{type}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                }
               </Panel>
               <Controls />
               <Background style={{ backgroundColor: '#f5f5f5' }} />

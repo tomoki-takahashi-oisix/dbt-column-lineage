@@ -5,6 +5,7 @@ from sqlglot import exp, parse_one, MappingSchema
 from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 
+from dbt_column_lineage.constants import SQLGLOT_DIALECT
 from dbt_column_lineage.utils import get_dbt_project_dir
 
 
@@ -41,7 +42,7 @@ class DbtSqlglot:
         self.dbt_manifest_parent_map = manifest['parent_map']
 
         self.logger = logger
-        self.dialect = 'snowflake'
+        self.dialect = SQLGLOT_DIALECT
 
     def project_name(self):
         self.logger.info(self.dbt_metadata)

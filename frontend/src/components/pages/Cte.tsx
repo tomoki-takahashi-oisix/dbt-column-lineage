@@ -16,6 +16,7 @@ import dagre from 'dagre'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import CteNode, { CteNodeProps, Meta } from '@/components/molecules/CteNode'
+import { getColorClassForMaterialized } from '@/lib/utils'
 
 const myTheme = EditorView.theme({
   '.cm-content': {
@@ -273,7 +274,8 @@ interface QueryParams {
 }
 
 export const Cte = () => {
-  const { height: windowHeight } = useGetWindowSize()
+  // 一番上のプルダウン一覧の分が55px、タブが32px
+  const mainWindowHeight = useGetWindowSize().height -55 -32
   const [nodes, setNodes] = useNodesState([])
   const [edges, setEdges] = useEdgesState([])
   const [nodesPositioned, setNodesPositioned] = useState(true)
@@ -353,48 +355,54 @@ export const Cte = () => {
       <Header handleFetchData={handleFetchData} />
       <div className="flex flex-wrap">
         <div className="w-1/2">
-          <h4 className="px-1 text-2xl font-bold flex items-center">
-            <span className="select-text">{tableName}</span>
-            <small className="ms-2 font-semibold text-gray-500 dark:text-gray-400 select-text">
+          <h4 className="h-[32px] px-1 text-2xl font-bold flex items-center">
+            <span className="select-text truncate" title={tableName}>{tableName}</span>
+            <span
+              className={`ms-2 text-sm font-semibold text-gray-500 dark:text-gray-400 select-text ${getColorClassForMaterialized(materialized)} bg-opacity-50 rounded px-2 py-1`}>
               {materialized}
-            </small>
+            </span>
           </h4>
 
-          <div className="px-2" style={{ height: windowHeight * 0.85, overflowY: 'auto' }}>
+          <div className="px-2" style={{ height: mainWindowHeight, overflowY: 'auto' }}>
             <CodeMirror ref={codeMirrorRef} value={query} theme={myTheme} extensions={[sql(), highlightExtension]} />
           </div>
         </div>
-        {/* 一番上のプルダウン一覧の分が55px、タブが24px*/}
-        <div className="w-1/2" style={{ height: windowHeight - 55 - 24 }}>
-          <div className="mx-2">
-            <button className={'px-1 ' + (mode == 'description' && 'font-semibold')} onClick={() => setMode('description')}>
-              Description
-            </button>
-            <button className={'px-1 ' + (mode == 'columns' && 'font-semibold')} onClick={() => setMode('columns')}>
-              Columns
-            </button>
-            <button className={'px-1 ' + (mode == 'lineage' && 'font-semibold')} onClick={() => handleClickLineageMode()}>
-              Lineage
-            </button>
+        <div className="w-1/2">
+          <div className="flex h-8 rounded-md p-0.5">
+            {['description', 'columns', 'lineage'].map((tab) => (
+              <button
+                key={tab}
+                className={`${
+                  mode === tab
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:bg-white/[0.12] hover:text-gray-900'
+                } rounded-md px-2 text-xs font-medium transition-all duration-200 flex items-center justify-center h-7`}
+                onClick={() => tab === 'lineage' ? handleClickLineageMode() : setMode(tab)}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
           </div>
-          {mode == 'description' &&
-            <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{description}</Markdown>}
-          {mode == 'columns' && renderColumns({columns})}
-          {mode == 'lineage' &&
-          <ReactFlowProvider>
-            <CteFlow
-              nodes={nodes}
-              edges={edges}
-              setNodes={setNodes}
-              setEdges={setEdges}
-              codeMirrorRef={codeMirrorRef}
-              nodesPositioned={nodesPositioned}
-              setNodesPositioned={setNodesPositioned}
-              entireMeta={entireMeta}
-            >
-            </CteFlow>
-          </ReactFlowProvider>
-          }
+          <div style={{ height: mainWindowHeight, overflowY: 'auto' }}>
+            {mode == 'description' &&
+              <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{description}</Markdown>}
+            {mode == 'columns' && renderColumns({ columns })}
+            {mode == 'lineage' &&
+              <ReactFlowProvider>
+                <CteFlow
+                  nodes={nodes}
+                  edges={edges}
+                  setNodes={setNodes}
+                  setEdges={setEdges}
+                  codeMirrorRef={codeMirrorRef}
+                  nodesPositioned={nodesPositioned}
+                  setNodesPositioned={setNodesPositioned}
+                  entireMeta={entireMeta}
+                >
+                </CteFlow>
+              </ReactFlowProvider>
+            }
+          </div>
         </div>
       </div>
     </div>

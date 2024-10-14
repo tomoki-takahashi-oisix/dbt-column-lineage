@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import urllib
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib import parse
 from urllib.parse import urlencode
@@ -20,13 +21,18 @@ from starlette.middleware.sessions import SessionMiddleware
 from dbt_column_lineage.constants import USE_OAUTH, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_ROUTE
 from dbt_column_lineage.lineage import DbtSqlglot
 from dbt_column_lineage.looker import Looker
-from dbt_column_lineage.utils import get_logger, get_redirect_url, get_diff_to_params
+from dbt_column_lineage.utils import get_logger, get_redirect_url, get_diff_to_params, startup_dialect_check
 
 import typer
 
 cli = typer.Typer()
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    startup_dialect_check()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS設定
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])

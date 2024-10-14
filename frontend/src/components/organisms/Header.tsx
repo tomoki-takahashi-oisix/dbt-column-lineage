@@ -15,12 +15,12 @@ export const Header = ({handleFetchData}: HeaderProps) => {
   const [columns, setColumns] = useState<{[source: string]: {label:string, description: string, value: string}[]}>({})
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true)
 
-  const [schema, setSchema] = useState('obt')
-  const [selectedSources, setSelectedSources] = useState<string[]>(['obt_sales_order'])
-  const [activeSource, setActiveSource] = useState('obt_sales_order')
-  const [currentSelectedColumns, setCurrentSelectedColumns] = useState<string[]>(['week_ver'])
+  const [schema, setSchema] = useState('')
+  const [selectedSources, setSelectedSources] = useState<string[]>([])
+  const [activeSource, setActiveSource] = useState('')
+  const [currentSelectedColumns, setCurrentSelectedColumns] = useState<string[]>([])
   // カラムの選択状態の記憶
-  const [selectedColumnsBySource, setSelectedColumnsBySource] = useState<{[source: string]: string[]}>({'obt_sales_order': ['week_ver']})
+  const [selectedColumnsBySource, setSelectedColumnsBySource] = useState<{[source: string]: string[]}>({})
   const [searchShowColumn, setSearchShowColumn] = useState(true)
 
   const loading = useStoreZustand((state) => state.loading)

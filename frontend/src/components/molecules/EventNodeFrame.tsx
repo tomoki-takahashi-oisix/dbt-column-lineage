@@ -5,18 +5,27 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEllipsisV, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { useSearchParams } from 'next/navigation'
 import { useStore as useStoreZustand } from '@/store/zustand'
+import { getColorClassForMaterialized } from '@/lib/utils'
 
 interface NodeProps {
   schema: string
   tableName: string
   selected: boolean
-  color?: string
+  materialized: string
   isClickableTableName: boolean
   content: React.ReactNode
   hideNode: () => void
 }
 
-const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, color, isClickableTableName, content, hideNode }) => {
+const EventNodeFrame: React.FC<NodeProps> = ({
+                                               schema,
+                                               tableName,
+                                               selected,
+                                               materialized,
+                                               isClickableTableName,
+                                               content,
+                                               hideNode
+                                             }) => {
   const setMessage = useStoreZustand((state) => state.setMessage)
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
@@ -25,7 +34,7 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
     e.stopPropagation()
     const sources = tableName
     const activeSource = sources
-    const params = new URLSearchParams({schema, sources, activeSource})
+    const params = new URLSearchParams({ schema, sources, activeSource })
 
     window.open(`/cte?${params.toString()}`, '_blank')
   }, [schema, tableName])
@@ -52,10 +61,7 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
     return searchParams.get('source') !== tableName
   }, [searchParams, tableName])
 
-  // テーブル名の背景色を設定
-  const titleStyle = useMemo(() => ({
-    backgroundColor: color || '#FFF',
-  }), [color])
+  const colorClass = getColorClassForMaterialized(materialized)
 
   return (
     <div
@@ -63,15 +69,14 @@ const EventNodeFrame: React.FC<NodeProps> = ({ schema, tableName, selected, colo
         flex flex-col bg-white 
         transition-all duration-250 ease-in-out
         ${selected
-        ? 'shadow-[0_14px_28px_rgba(0,0,0,0.25),_0_10px_10px_rgba(0,0,0,0.22)]'
-        : 'shadow-[0_3px_6px_rgba(0,0,0,0.16),_0_3px_6px_rgba(0,0,0,0.23)]'}
-        border-0 border-solid border-[#bbb]
-        text-[10pt]
+        ? 'shadow-lg'
+        : 'shadow-md'}
+        border-0 border-solid border-gray-300
+        text-sm
       `}
     >
       <div
-        className="relative py-2 px-3 flex items-center justify-between"
-        style={titleStyle}
+        className={`relative py-2 px-3 flex items-center justify-between ${colorClass}`}
       >
         <div className="flex-grow mr-2 overflow-hidden text-ellipsis">
           {isClickableTableName ? (
