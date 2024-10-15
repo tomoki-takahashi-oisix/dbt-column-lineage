@@ -173,12 +173,10 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
   }, [])
 
   const highlightColumns = useCallback(() => {
-    if (nodes.length == 0 || nodesPositioned) {
-      return
-    }
-    if (codeMirrorRef.current == null || codeMirrorRef.current.view == null) {
-      return
-    }
+    if (nodes.length == 0 || nodesPositioned) return
+    if (codeMirrorRef.current == null || codeMirrorRef.current.view == null) return
+    if (!Array.isArray(entireMeta)) return
+
     const columnHighlightDecoration = Decoration.mark({ class: 'bg-amber-200' })
     const nextColumnHighlightDecoration = Decoration.mark({ class: 'bg-emerald-200' })
     const nextTableHighlightDecoration = Decoration.mark({ class: 'bg-indigo-200' })
