@@ -537,6 +537,9 @@ class DbtSqlglot:
         data = {}
         for ref in refs:
             ref_dbt_node = self.dbt_manifest_nodes.get(ref)
+            if ref_dbt_node is None:
+                self.logger.info('ref_dbt_node is None')
+                continue
             ref_node_name = ref_dbt_node.get('name')
             ref_schema = ref_dbt_node.get('schema')
             ref_compiled_code = ref_dbt_node.get('compiled_code')
