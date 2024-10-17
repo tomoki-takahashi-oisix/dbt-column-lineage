@@ -139,6 +139,10 @@ def _extract_model_name(input_path):
             if len(parts) > dir_index + 1:
                 # ファイル名を取得（拡張子を除く）
                 filename = parts[-1]
+                # ファイル名が 'audit_' で始まる場合は無視
+                if filename.startswith('audit_'):
+                    continue
+                # sqlファイルの場合はファイル名を返す
                 if filename.endswith('.sql'):
                     filename = os.path.splitext(filename)[0]
                     return filename
