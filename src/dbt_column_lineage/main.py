@@ -17,6 +17,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 from requests.auth import HTTPBasicAuth
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from dbt_column_lineage.constants import USE_OAUTH, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_ROUTE
 from dbt_column_lineage.lineage import DbtSqlglot
@@ -44,6 +45,12 @@ logger = get_logger(app, __name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={'detail': str(exc.detail)}
+    )
 
 # セッションからアクセストークンを取得する依存関数
 async def get_current_user(request: Request):
@@ -194,7 +201,7 @@ async def find_cte(source: str, column: str = None, current_user: str = Depends(
     dbt_sqlglot = DbtSqlglot(logger)
     res = dbt_sqlglot.cte_dependency(source, columns)
     if res is None:
-        raise HTTPException(status_code=404, detail='Not found')
+        return JSONResponse(status_code=404, content={'detail': 'Not found query'})
     return JSONResponse(content=res)
 
 

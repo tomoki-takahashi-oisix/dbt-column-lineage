@@ -286,6 +286,7 @@ export const Cte = () => {
   const [columns, setColumns] = useState<any[]>([])
   const [entireMeta, setEntireMeta] = useState<any[]>([])
   const router = useRouter()
+  const setMessage = useStoreZustand((state) => state.setMessage)
 
   const handleFetchData = useCallback(async ({sources, columns}: QueryParams) => {
     setNodes([])
@@ -298,8 +299,8 @@ export const Cte = () => {
     const response = await fetch(`${hostName}/api/v1/cte?${query}`)
     const data = await response.json()
     if (response.status != 200) {
-      alert(data['error'])
-      router.back()
+      setMessage(data['detail'], 'error')
+      setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
       return false
     }
     setNodes(data['nodes'])

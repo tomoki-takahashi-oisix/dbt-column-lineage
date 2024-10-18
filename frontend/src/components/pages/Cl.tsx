@@ -23,9 +23,6 @@ import { Sidebar } from '@/components/organisms/Sidebar'
 import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import ToggleButtons from '@/components/ui/ToggleButtons'
-import { AlertTriangle, Check, Info } from 'lucide-react'
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
 
 interface QueryParams {
@@ -43,6 +40,7 @@ export const Cl = () => {
   const [viewIsFit, setViewIsFit] = useState(false)
   const [nodesPositioned, setNodesPositioned] = useState(true)
 
+  const setMessage = useStoreZustand((state) => state.setMessage)
   const sidebarActive = useStoreZustand((state) => state.sidebarActive)
   const options = useStoreZustand((state) => state.options)
   const setOptions = useStoreZustand((state) => state.setOptions)
@@ -54,8 +52,6 @@ export const Cl = () => {
   const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
-  const message = useStoreZustand((state) => state.message)
-  const messageType = useStoreZustand((state) => state.messageType)
 
   const searchParams = useSearchParams()
 
@@ -80,7 +76,8 @@ export const Cl = () => {
     const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
     const data = await response.json()
     if (response.status != 200) {
-      alert(data['error'])
+      setMessage(data['detail'], 'error')
+      setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
       return false
     }
     setNodes(data['nodes'])
@@ -104,17 +101,6 @@ export const Cl = () => {
     (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
     [setEdges],
   )
-
-  const getMessageIcon = (type: string | null) => {
-    switch (type) {
-      case 'success':
-        return <Check className="inline-block mr-2" size={20} />
-      case 'error':
-        return <AlertTriangle className="inline-block mr-2" size={20} />
-      default:
-        return <Info className="inline-block mr-2" size={20} />
-    }
-  }
 
   const nodeTypes = useMemo(() => ({
     eventNode: (props: EventNodeProps) => <EventNode {...props} />
@@ -207,22 +193,6 @@ export const Cl = () => {
                    setNodesPositioned={setNodesPositioned} nodesPositioned={nodesPositioned} />
         </ReactFlowProvider>
       </div>
-      {message && (
-        <div
-          className={`absolute top-4 right-4 px-4 py-3 rounded shadow-md z-50 flex items-center ${
-            messageType === 'success' ? 'bg-green-100 border-green-400 text-green-700' :
-              messageType === 'error' ? 'bg-red-100 border-red-400 text-red-700' :
-                'bg-blue-100 border-blue-400 text-blue-700'
-          }`}
-          role="alert"
-        >
-          {getMessageIcon(messageType)}
-          <div className="sm:inline text-xs max-w-xl">
-            <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{message}</Markdown>
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
