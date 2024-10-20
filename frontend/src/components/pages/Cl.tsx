@@ -130,6 +130,7 @@ export const Cl = () => {
         <ReactFlowProvider>
           <div className={sidebarActive ? "w-5/6" : "w-[calc(100%-20px)]"} style={{ height: windowHeight - 55 }}>
             <ReactFlow
+              minZoom={0.2}
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}

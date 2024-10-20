@@ -252,6 +252,7 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
   return (
     <Suspense>
       <ReactFlow
+        minZoom={0.2}
         nodes={nodes}
         nodeTypes={nodeTypes}
         edges={edges}

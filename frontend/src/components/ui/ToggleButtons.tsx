@@ -6,6 +6,7 @@ import { Camera, Table, Columns3 } from 'lucide-react'
 
 const ToggleButtons = () => {
   const { getEdges, setEdges } = useReactFlow()
+  const { fitView } = useReactFlow()
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
   const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
@@ -80,6 +81,9 @@ const ToggleButtons = () => {
   const copyToClipboard = useCallback(async() => {
     const flowElement = document.querySelector('.react-flow__viewport') as HTMLElement
 
+    // ビューをフィットさせる
+    window.requestAnimationFrame(() => fitView())
+    await new Promise(resolve => setTimeout(resolve, 100))
     const blob = await toBlob(flowElement, { backgroundColor: '#fff', })
     if (blob) {
       try {

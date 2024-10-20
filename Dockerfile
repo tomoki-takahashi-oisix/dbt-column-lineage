@@ -1,4 +1,4 @@
-FROM node:21 as node-builder
+FROM node:22 as node-builder
 WORKDIR /frontend
 
 ENV NODE_ENV production
