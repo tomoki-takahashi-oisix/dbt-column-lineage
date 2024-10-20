@@ -1,8 +1,8 @@
-sqlglot==24.1.0
-fastapi==0.112.1
-uvicorn==0.30.6
-requests==2.31.0
-pytz==2024.1
+sqlglot==25.25.1
+fastapi==0.115.2
+uvicorn==0.32.0
+requests==2.32.3
+pytz==2024.2
 looker-sdk==24.4.0
 python-liquid==1.12.1
 itsdangerous==2.2.0

@@ -1,5 +1,4 @@
 import looker_sdk
-from looker_sdk.sdk.api40.models import Folder
 
 
 class Looker:
@@ -148,7 +147,7 @@ class Looker:
         return ret
 
 
-    def _get_folder(self, folder: Folder, folder_name: str) -> str:
+    def _get_folder(self, folder, folder_name: str) -> str:
         if folder and folder.parent_id:
             parent_folder = self.folders[folder.parent_id]
             folder_name = f'{parent_folder.name}/{folder_name}'
