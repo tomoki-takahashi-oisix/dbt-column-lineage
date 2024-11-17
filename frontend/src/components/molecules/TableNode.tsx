@@ -3,16 +3,16 @@ import React, { useCallback } from 'react'
 import { NodeProps, Position } from 'reactflow'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
-import EventNodeHandle from '@/components/molecules/EventNodeHandle'
-import EventNodeFrame from '@/components/molecules/EventNodeFrame'
-import EventNodeColumns from '@/components/molecules/EventNodeColumns'
+import EventNodeHandle from '@/components/molecules/TableNodeColumnHandle'
+import EventNodeFrame from '@/components/molecules/TableNodeFrame'
+import TableNodeMoreColumns from '@/components/molecules/TableNodeMoreColumns'
 import TableNodeHandle from '@/components/molecules/TableNodeHandle'
 
-export interface EventNodeProps extends NodeProps {
-  data: NodeDataType
+export interface TableNodeProps extends NodeProps {
+  data: TableNodeDataType
 }
 
-interface NodeDataType {
+interface TableNodeDataType {
   name: string
   color: string
   schema: string
@@ -23,7 +23,7 @@ interface NodeDataType {
 }
 
 
-export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
+export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
   const { addSingleLineage, addReverseLineage, hideNode,
     hideTableAndRelatedEdges, hideColumnAndRelatedEdges,
     lastNodeColumns, lastNodeTable, firstNodeColumns, firstNodeTable } = useEventNodeOperations(id)
@@ -172,7 +172,7 @@ export const EventNode: React.FC<EventNodeProps> = ({ data, id, selected }) => {
                 )}
               </div>
             ))}
-            <EventNodeColumns
+            <TableNodeMoreColumns
               schema={data.schema}
               tableName={data.name}
               nodeColumns={data.columns}

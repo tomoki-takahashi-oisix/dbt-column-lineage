@@ -1,6 +1,6 @@
 'use client'
 import { useSearchParams } from 'next/navigation'
-import { EventNode, EventNodeProps } from '@/components/molecules/EventNode'
+import { TableNode, TableNodeProps } from '@/components/molecules/TableNode'
 import { useGetWindowSize } from '@/hooks/useGetWindowSize'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import ReactFlow, {
@@ -24,8 +24,10 @@ import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import ToggleButtons from '@/components/ui/ToggleButtons'
 import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
+import { DashboardNode, DashboardNodeProps } from '@/components/molecules/DashboardNode'
 
 interface QueryParams {
+  dashboardId?: string
   sources: string[]
   columns: {[source: string]: string[]}
   showColumn: boolean
@@ -55,25 +57,37 @@ export const Cl = () => {
 
   const searchParams = useSearchParams()
 
-  const handleFetchData = useCallback(async ({ sources, columns, showColumn, depth }: QueryParams) => {
+  const handleFetchData = useCallback(async ({ dashboardId, sources, columns, showColumn, depth }: QueryParams) => {
     setNodes([])
     setEdges([])
-    setShowColumn(showColumn)
+    // undefined が入っている場合は false に変換
+    setShowColumn(Boolean(showColumn))
 
-    const query = new URLSearchParams({sources:sources.join(','), columns: JSON.stringify(columns), show_column: showColumn.toString()})
-    // depthの指定がない場合
-    if (Number.isNaN(depth)) {
-      if (showColumn) {
-        query.append('depth', '-1')
-      } else {
-        // テーブルモードの場合は広がり過ぎるのでdepthを1にする
-        query.append('depth', '1')
-      }
-    } else {
-      query.set('depth', depth.toString())
-    }
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
-    const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
+    let response
+
+    if (dashboardId) {
+      const query = new URLSearchParams({ dashboard_id: dashboardId, depth: '1' })
+      response = await fetch(`${hostName}/api/v1/dashboard_lineage?${query}`)
+    } else {
+      const query = new URLSearchParams({
+        sources: sources.join(','),
+        columns: JSON.stringify(columns),
+        show_column: showColumn.toString()
+      })
+      // depthの指定がない場合
+      if (Number.isNaN(depth)) {
+        if (showColumn) {
+          query.append('depth', '-1')
+        } else {
+          // テーブルモードの場合は広がり過ぎるのでdepthを1にする
+          query.append('depth', '1')
+        }
+      } else {
+        query.set('depth', depth.toString())
+      }
+      response = await fetch(`${hostName}/api/v1/lineage?${query}`)
+    }
     const data = await response.json()
     if (response.status != 200) {
       setMessage(data['detail'], 'error')
@@ -103,7 +117,8 @@ export const Cl = () => {
   )
 
   const nodeTypes = useMemo(() => ({
-    eventNode: (props: EventNodeProps) => <EventNode {...props} />
+    tableNode: (props: TableNodeProps) => <TableNode {...props} />,
+    dashboardNode: (props: DashboardNodeProps) => <DashboardNode {...props} />
   }), [])
 
   // 外部から setRefreshNodesPosition が呼ばれた場合

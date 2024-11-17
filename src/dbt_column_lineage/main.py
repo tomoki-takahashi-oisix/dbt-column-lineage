@@ -193,6 +193,16 @@ async def find_lineage(
     res = dbt_sqlglot.ret_edges_nodes()
     return JSONResponse(content=res)
 
+@app.get(f'{BASE_ROUTE}/dashboard_lineage')
+async def find_dashboard_lineage(
+    dashboard_id: str = Query(None, description='dashboard id'),
+    depth: int = Query(-1, description='depth of lineage', ge=-1),
+    current_user: str = Depends(get_current_user)
+):
+    dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
+    dbt_sqlglot.dashboard_lineage(dashboard_id)
+    res = dbt_sqlglot.ret_edges_nodes()
+    return JSONResponse(content=res)
 
 @app.get(f'{BASE_ROUTE}/cte')
 async def find_cte(source: str, column: str = None, current_user: str = Depends(get_current_user)):
@@ -205,25 +215,18 @@ async def find_cte(source: str, column: str = None, current_user: str = Depends(
     return JSONResponse(content=res)
 
 
-@app.get(f'{BASE_ROUTE}/folder_dashboards')
-async def list_folder_dashboards(current_user: str = Depends(get_current_user)):
+@app.get(f'{BASE_ROUTE}/dashboards')
+async def list_dashboards(current_user: str = Depends(get_current_user)):
     looker = Looker(logger)
-    folder_dashboards = looker.get_folder_dashboards()
-    return JSONResponse(content=folder_dashboards)
+    result = looker.get_dashboards()
 
+    if result['status'] == 'error':
+        raise HTTPException(
+            status_code=500,
+            detail=result.get('message', 'Internal server error')
+        )
 
-@app.get(f'{BASE_ROUTE}/dashboard_elements/{{dashboard_id}}')
-async def get_dashboard_elements(dashboard_id: str, current_user: str = Depends(get_current_user)):
-    looker = Looker(logger)
-    dashboard_elements = looker.get_dashboard_elements(dashboard_id)
-    return JSONResponse(content=dashboard_elements)
-
-
-@app.get(f'{BASE_ROUTE}/explore_fields/{{slug}}')
-async def get_explore_fields(slug: str, current_user: str = Depends(get_current_user)):
-    looker = Looker(logger)
-    explore_fields = looker.get_explore_fields(slug)
-    return JSONResponse(content=explore_fields)
+    return JSONResponse(content=result)
 
 
 # 静的ファイルの設定

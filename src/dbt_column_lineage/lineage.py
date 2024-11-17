@@ -1,11 +1,14 @@
 import json
 import time
+import typing as t
 
-from sqlglot import exp, parse_one, MappingSchema
+from sqlglot import exp, parse_one, MappingSchema, Expression, Schema
 from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
+from sqlglot.optimizer import build_scope, Scope, qualify
 
-from dbt_column_lineage.constants import SQLGLOT_DIALECT
+from dbt_column_lineage.constants import SQLGLOT_DIALECT, USE_LOOKER
+from dbt_column_lineage.looker import Looker
 from dbt_column_lineage.utils import get_dbt_project_dir
 
 
@@ -22,6 +25,7 @@ class DbtSqlglot:
         # 毎度初期化する変数
         self.nodes = []
         self.edges = []
+        self.target_dashboard_ids = []
         self.request_depth = request_depth
 
         if self._initialized:
@@ -41,6 +45,9 @@ class DbtSqlglot:
         self.dbt_manifest_child_map = manifest['child_map']
         self.dbt_manifest_parent_map = manifest['parent_map']
 
+        self.looker = None
+        if USE_LOOKER:
+            self.looker = Looker(logger)
         self.logger = logger
         self.dialect = SQLGLOT_DIALECT
 
@@ -111,6 +118,16 @@ class DbtSqlglot:
                 for key, value in dbt_columns.items():
                     ret.append({'value': key, 'label': value['name'], 'description': value['description']})
                 return ret
+
+    def dashboard_lineage(self, dashboard_id: str):
+        tables = set()
+        self.target_dashboard_ids = [dashboard_id]
+        for element in self.looker.get_dashboard_elements(dashboard_id):
+            for tbl in element.get('tables', []):
+                tables.add(tbl.upper())
+
+        for table in tables:
+            self.table_lineage(table.lower(), revs=False)
 
 
     def table_lineage(self, source: str, revs=False):
@@ -221,7 +238,7 @@ class DbtSqlglot:
             },
             'position': {'x': 0,'y': 0},
             # 'max_len': max_len, 'depth': depth,
-            'type': 'eventNode'
+            'type': 'tableNode'
         })
 
     def __add_edge(self, base_column: str, columns: [], base_source: str, source: str):
@@ -296,27 +313,7 @@ class DbtSqlglot:
                 break
         return element
 
-    def __get_sqlglot_lineage(self, source: str, compiled_code: str, columns: [], depends_on_table_info: [], need_meta=False) -> dict:
-        # MappingSchema にテーブル情報を追加
-        sqlglot_db_schema = MappingSchema(dialect=self.dialect, normalize=False)
-        for s in depends_on_table_info:
-            source_table = s['table']
-            source_columns = s['columns']
-
-            table_schema = {}
-            for key, item in source_columns.items():
-                table_schema[key] = item.get('type', 'STRING')
-
-            sqlglot_db_schema.add_table(
-                source_table,
-                column_mapping=table_schema,
-            )
-        try:
-            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
-        except SqlglotError:
-            self.logger.error(f'parse sql. source={source}')
-            return {}
-
+    def __get_sqlglot_lineage(self, source: str, parsed_sql: Expression, columns: [], sqlglot_db_schema: t.Dict | Schema, need_meta=False, sql_scope:t.Optional[Scope]=None) -> dict:
         ret = {}
         for column in columns:
             column = column.upper()
@@ -324,7 +321,7 @@ class DbtSqlglot:
             replace_columns = set()
             try:
                 start_time = time.time()
-                lin = lineage(column, parsed_sql, dialect=self.dialect, schema=sqlglot_db_schema)
+                lin = lineage(column, parsed_sql, dialect=self.dialect, schema=sqlglot_db_schema, scope=sql_scope)
                 end_time = time.time()
                 if end_time - start_time > 3:
                     self.logger.info(f'lineage time: source={source}, column={column}, time={end_time - start_time}秒')
@@ -386,6 +383,22 @@ class DbtSqlglot:
         self.logger.info(f'{source}, {ret}')
         return ret
 
+    def __get_sqlglot_db_schema(self, depends_on_table_info):
+        sqlglot_db_schema = MappingSchema(dialect=self.dialect, normalize=False)
+        for s in depends_on_table_info:
+            source_table = s['table']
+            source_columns = s['columns']
+
+            table_schema = {}
+            for key, item in source_columns.items():
+                table_schema[key] = item.get('type', 'STRING')
+
+            sqlglot_db_schema.add_table(
+                source_table,
+                column_mapping=table_schema,
+            )
+        return sqlglot_db_schema
+
     def __str_to_base_10_int_str(self, s:str) -> str:
         hash_value = 0
         for char in s:
@@ -441,9 +454,12 @@ class DbtSqlglot:
                     'first': False, 'last': False
                 },
                 'position': {'x': 0,'y': 0},
-                # 'max_len': max_len,'depth': depth,
-                'type': 'eventNode'
+                'type': 'tableNode'
             })
+
+        # ダッシュボード依存関係の追加処理
+        if self.looker and depth == 0:
+            self.__add_dashboard_dependencies(ref_name)
 
         depth = depth + 1
         if self.request_depth != -1 and depth > self.request_depth:
@@ -499,14 +515,28 @@ class DbtSqlglot:
         # エッジ作成
         self.__add_edge(base_column, filtered_columns, base_source, next_source)
 
+        # ダッシュボード依存関係の追加処理を挿入
+        if self.looker and depth == 0:
+            for filtered_column in filtered_columns:
+                self.__add_dashboard_dependencies(next_source, filtered_column)
+
         if dbt_compiled_code is None:
             self.logger.info('dbt_compiled_code is None')
             after_next_sources_columns_dict = {}
         else:
-            # リネージの手がかりとして依存テーブルのカラムやテーブル情報を作成
-            additional_dbt_sources = self.__get_depends_on_table_info(dbt_depends_on_nodes)
+            try:
+                parsed_sql = parse_one(dbt_compiled_code, dialect=self.dialect)
+            except SqlglotError:
+                self.logger.error(f'parse sql. source={next_source}')
+                parsed_sql = None
 
-            after_next_sources_columns_dict = self.__get_sqlglot_lineage(next_source, dbt_compiled_code, filtered_columns, additional_dbt_sources)
+            if parsed_sql:
+                # リネージの手がかりとして依存テーブルのカラムやテーブル情報を作成
+                additional_dbt_sources = self.__get_depends_on_table_info(dbt_depends_on_nodes)
+                sqlglot_db_schema = self.__get_sqlglot_db_schema(additional_dbt_sources)
+                after_next_sources_columns_dict = self.__get_sqlglot_lineage(next_source, parsed_sql, filtered_columns, sqlglot_db_schema)
+            else:
+                after_next_sources_columns_dict = {}
 
         depth = depth + 1
         after_base_source = next_source
@@ -556,13 +586,26 @@ class DbtSqlglot:
             if not found:
                 continue
 
+            sqlglot_db_schema = self.__get_sqlglot_db_schema(depends_on_table_info)
+            try:
+                parsed_sql = parse_one(ref_compiled_code, dialect=self.dialect)
+                sql_scope = self.__build_scope(parsed_sql, sqlglot_db_schema)
+            except SqlglotError:
+                self.logger.error(f'parse sql. source={source}')
+                continue
+
             # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
             ref_columns = ref_dbt_node.get('columns', self.__get_dbt_catalog(ref).get('columns', {}))
-            for ref_column in ref_columns:
-                self.logger.info(f'table={ref}, column={ref_column}')
 
+            for ref_column in ref_columns:
+                reference = self.__find_column_references(sql_scope, source, ref_column)
+                if not reference:
+                    self.logger.debug(f'table={ref}, reference={reference}, ref_column={ref_column} not found')
+                    continue
+
+                self.logger.info(f'table={ref}, column={ref_column}')
                 ref_column_name = ref_column.upper()
-                items = self.__get_sqlglot_lineage(source, ref_compiled_code, [ref_column_name], depends_on_table_info)
+                items = self.__get_sqlglot_lineage(source, parsed_sql, [ref_column_name], sqlglot_db_schema, sql_scope=sql_scope)
                 item_labels_columns = items.get(ref_column_name, {})
                 if column in item_labels_columns.get('columns', []):
                     item_labels = item_labels_columns['labels']
@@ -592,7 +635,7 @@ class DbtSqlglot:
                     'first': False,'last': False
                 },
                 'position': {'x': 0,'y': 0},
-                'type': 'eventNode'
+                'type': 'tableNode'
             })
             for target_column in target_columns:
                 edge_id = f'{base_edge_id}-{target_column}-{column}'
@@ -610,10 +653,17 @@ class DbtSqlglot:
         dependencies = {}
         lineage_tables = []
         lineage_meta = []
+        parsed_sql = None
 
-        if len(columns) > 0:
+        try:
+            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
+        except SqlglotError:
+            self.logger.error(f'parse sql. source={source}')
+
+        if parsed_sql and len(columns) > 0:
             depends_on_table_info = self.__get_depends_on_table_info(dbt_depends_on_nodes)
-            items = self.__get_sqlglot_lineage(source, compiled_code, columns, depends_on_table_info, True)
+            sqlglot_db_schema = self.__get_sqlglot_db_schema(depends_on_table_info)
+            items = self.__get_sqlglot_lineage(source, parsed_sql, columns, sqlglot_db_schema, need_meta=True)
 
             # 現状columns は1つのみ
             item = items.get(columns[0].upper(), {'labels': [], 'meta': {}})
@@ -621,13 +671,8 @@ class DbtSqlglot:
                 lineage_tables.append(label.lower())
             lineage_meta = item['meta']
 
-        try:
-            parsed_sql = parse_one(compiled_code, dialect=self.dialect)
-            ctes = parsed_sql.find_all(exp.CTE)
-        except SqlglotError:
-            self.logger.error(f'parse cte error. source={source}')
-            ctes = []
-
+        parsed_sql = parse_one(compiled_code, dialect=self.dialect)
+        ctes = parsed_sql.find_all(exp.CTE)
         for cte in ctes:
             dependencies[cte.alias_or_name] = []
             # reference が一致するすべての meta 情報を取得
@@ -677,3 +722,95 @@ class DbtSqlglot:
 
         return lineage_meta
 
+    def __find_column_references(self, sql_scope: Scope, target_table: str, target_column: str) -> t.List[str]:
+        references = set()
+
+        # クエリ内のすべてのSELECTを取得
+        selects = sql_scope.expression.find_all(exp.Select)
+
+        for select in selects:
+            # このSELECTのFROM句とJOINで参照されているテーブルをチェック
+            tables = select.find_all(exp.Table)
+            if not any(t.name.lower() == target_table.lower() for t in tables):
+                continue
+
+            # SELECT句の内容をチェック
+            for expr in select.expressions:
+                # SELECT * の場合
+                if isinstance(expr, exp.Star):
+                    references.add('*')
+                    continue
+
+                # target_columnが含まれているか確認
+                columns = expr.find_all(exp.Column)
+                if any(col.name.lower() == target_column.lower() for col in columns):
+                    references.add(expr.alias_or_name)
+
+        return list(references)
+
+    def __build_scope(self, expression: Expression, schema: Schema) -> Scope:
+        expression = qualify.qualify(
+            expression,
+            dialect=self.dialect,
+            schema=schema,
+            **{"validate_qualify_columns": False, "identify": False},  # type: ignore
+        )
+
+        sql_scope = build_scope(expression)
+        return sql_scope
+
+    def __add_dashboard_dependencies(self, next_source, next_column=None):
+        dashboard_deps = self.looker.get_dashboard_dependencies(
+            next_source,
+            self.target_dashboard_ids,
+            next_column
+        )
+
+        for dash_id, dash_elements_deps in dashboard_deps.items():
+            dashboard = self.looker.get_dashboard(dash_id)
+            node_id = self.__str_to_base_10_int_str(f"dashboard_{dash_id}")
+
+            if not self.__find(self.nodes, 'id', node_id):
+                self.nodes.append({
+                    'id': node_id,
+                    'data': {
+                        'id': dash_id,
+                        'name': dashboard['title'],
+                        'url': dashboard['url'],
+                        'elements': dash_elements_deps,
+                    },
+                    'position': {'x': 0, 'y': 0},
+                    'type': 'dashboardNode',
+                })
+            else:
+                # すでにノードがあれば elements を更新
+                node = self.__find(self.nodes, 'id', node_id)
+                for dash_element in dash_elements_deps:
+                    dash_element_id = dash_element['id']
+                    if not self.__find(node['data']['elements'], 'id', dash_element_id):
+                        node['data']['elements'].append(dash_element)
+
+            target_id = self.__str_to_base_10_int_str(next_source)
+
+            for dash_element in dash_elements_deps:
+                dash_element_id = dash_element['id']
+                edge_id = f"{node_id}-{target_id}-{dash_element_id}"
+                target_handle = f"{target_id}__target"
+                if next_column:
+                    edge_id = f"{node_id}-{target_id}-{dash_element_id}-{next_column}"
+                    target_handle = f"{next_column}__target"
+
+                if not self.__find(self.edges, 'id', edge_id):
+                    self.edges.append({
+                        'id': edge_id,
+                        'mode': 'dashboard',
+                        'source': node_id,
+                        'target': target_id,
+                        'sourceHandle': f"{dash_element_id}__source",
+                        'targetHandle': target_handle,
+                        'fixed': True,
+                        'style': {
+                            'strokeDasharray': '5,5',
+                            'strokeWidth': 1.5,
+                        }
+                    })

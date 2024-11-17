@@ -60,6 +60,22 @@ npm run dev
 after the frontend is running,
 Let's access http://localhost:3000
 
+## for Looker integration (optional)
+If you want to integrate with Looker, you can use the following commands:
+```
+# set the environment variables
+export LOOKERSDK_CLIENT_ID=(your client id)
+export LOOKERSDK_CLIENT_SECRET=(your client secret)
+export LOOKERSDK_BASE_URL=(your looker base url)
+export LOOKER_IGNORE_FOLDERS=(comma separated list of folders to ignore)
+export LOOKER_IGNORE_ELEMENTS=(comma separated list of dashboard elements to ignore)
+
+# it analyze the looker models, target/dashboad_analysis.json will be created
+python tools/looker_analyzer.py
+
+# rerun the backend
+uvicorn --app-dir src dbt_column_lineage.main:app --port=5000 --reload
+```
 ## for Google OAuth login test (optional)
 
 If you want to test the OAuth login, you can use the following commands:

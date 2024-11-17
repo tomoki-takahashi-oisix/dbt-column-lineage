@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMinus, faPlus, faSpinner } from '@fortawesome/free-solid-svg-icons'
 import { useStore as useStoreZustand } from '@/store/zustand'
 
-interface CustomHandleProps {
+interface TableNodeColumnProps {
   type: 'source' | 'target'
   position: Position
   id: string
@@ -16,7 +16,7 @@ interface CustomHandleProps {
   showToggle?: boolean
 }
 
-const EventNodeHandle: React.FC<CustomHandleProps> = ({ type, position, id, isConnectable, nodeId, onDelete, onConnect }) => {
+const TableNodeColumnHandle: React.FC<TableNodeColumnProps> = ({ type, position, id, isConnectable, nodeId, onDelete, onConnect, showToggle=true }) => {
   const edges = useStore((store) => store.edges)
   const loading = useStoreZustand((state) => state.loading)
 
@@ -60,6 +60,7 @@ const EventNodeHandle: React.FC<CustomHandleProps> = ({ type, position, id, isCo
           border: 'none',
         }}
       />
+      {showToggle && (
       <button
         className="w-6 h-6 flex items-center justify-center bg-white rounded-full border border-gray-300 hover:bg-gray-100 focus:outline-none"
         style={{
@@ -87,8 +88,9 @@ const EventNodeHandle: React.FC<CustomHandleProps> = ({ type, position, id, isCo
           <span className="w-4 h-4"></span>
         )}
       </button>
+      )}
     </div>
   )
 }
 
-export default memo(EventNodeHandle)
+export default memo(TableNodeColumnHandle)

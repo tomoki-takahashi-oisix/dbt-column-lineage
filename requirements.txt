@@ -1,9 +1,8 @@
-sqlglot==25.28.0
+sqlglot==25.31.2
 fastapi==0.115.2
 uvicorn==0.32.0
 requests==2.32.3
 pytz==2024.2
-looker-sdk==24.4.0
-python-liquid==1.12.1
+looker-sdk==24.20.0
 itsdangerous==2.2.0
 typer==0.12.5

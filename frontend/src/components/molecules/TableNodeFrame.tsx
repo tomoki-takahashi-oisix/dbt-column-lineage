@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { getColorClassForMaterialized } from '@/lib/utils'
 
-interface NodeProps {
+interface TableNodeFrameProps {
   schema: string
   tableName: string
   selected: boolean
@@ -17,15 +17,7 @@ interface NodeProps {
   hideNode: () => void
 }
 
-const EventNodeFrame: React.FC<NodeProps> = ({
-                                               schema,
-                                               tableName,
-                                               selected,
-                                               materialized,
-                                               isClickableTableName,
-                                               content,
-                                               hideNode
-                                             }) => {
+const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selected, materialized, isClickableTableName, content, hideNode}) => {
   const setMessage = useStoreZustand((state) => state.setMessage)
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
@@ -65,15 +57,8 @@ const EventNodeFrame: React.FC<NodeProps> = ({
 
   return (
     <div
-      className={`
-        flex flex-col bg-white 
-        transition-all duration-250 ease-in-out
-        ${selected
-        ? 'shadow-lg'
-        : 'shadow-md'}
-        border-0 border-solid border-gray-300
-        text-sm
-      `}
+      className={`flex flex-col bg-white transition-all duration-250 ease-in-out border-0 border-solid border-gray-300 text-sm 
+      ${selected ? 'shadow-lg' : 'shadow-md'}`}
     >
       <div
         className={`relative py-2 px-3 flex items-center justify-between ${colorClass}`}
@@ -136,4 +121,4 @@ const EventNodeFrame: React.FC<NodeProps> = ({
   )
 }
 
-export default memo(EventNodeFrame)
+export default memo(TableNodeFrame)

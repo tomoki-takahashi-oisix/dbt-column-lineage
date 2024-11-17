@@ -31,7 +31,9 @@ const ToggleButtons = () => {
   const handleToggleButton = useCallback((buttonId: string) => {
     const showColumnValue = buttonId === 'column'
     setShowColumn(showColumnValue)
-    const currentEdges = getEdges()
+    // dashboardモードのエッジは除外
+    const currentEdges = getEdges().filter((edge: any) => edge?.mode != 'dashboard')
+    const filteredEdges = getEdges().filter((edge: any) => edge?.mode == 'dashboard')
 
     if (showColumnValue) {
       // テーブルモードからカラムモードへの切り替え
@@ -45,7 +47,7 @@ const ToggleButtons = () => {
         }
       }))
       // 保存しておいたカラムモードのエッジを復元し、エッジをマージ
-      const newEdges = columnModeEdges.concat(updatedEdges)
+      const newEdges = columnModeEdges.concat(updatedEdges).concat(filteredEdges)
       setEdges(newEdges)
       // カラムモードではrightMaxDepthは使えないのでfalseにする
       setRightMaxDepth(false)
@@ -71,7 +73,7 @@ const ToggleButtons = () => {
         }
       })
 
-      const newEdges = Array.from(tableEdges.values())
+      const newEdges = Array.from(tableEdges.values()).concat(filteredEdges)
       setEdges(newEdges)
 
     }

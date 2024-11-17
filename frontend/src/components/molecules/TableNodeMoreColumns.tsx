@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronDown, faChevronUp } from '@fortawesome/free-solid-svg-icons'
 
@@ -9,14 +9,14 @@ interface ColumnData {
   description?: string
 }
 
-interface EventNodeColumnsProps {
+interface TableNodeMoreColumnsProps {
   schema: string
   tableName: string
   nodeColumns: string[] // EventNodeのdata.columnsを受け取る
   handlePlusClickEventNodeHandle: (column: string, handleType: 'source' | 'target') => Promise<void>
 }
 
-const EventNodeColumns: React.FC<EventNodeColumnsProps> = ({ schema, tableName, nodeColumns, handlePlusClickEventNodeHandle }) => {
+const TableNodeMoreColumns: React.FC<TableNodeMoreColumnsProps> = ({ schema, tableName, nodeColumns, handlePlusClickEventNodeHandle }) => {
   const [fetching, setFetching] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [displayColumns, setDisplayColumns] = useState<ColumnData[]>([])
@@ -121,4 +121,4 @@ const EventNodeColumns: React.FC<EventNodeColumnsProps> = ({ schema, tableName, 
   )
 }
 
-export default EventNodeColumns
+export default memo(TableNodeMoreColumns)

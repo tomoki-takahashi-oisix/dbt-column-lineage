@@ -1,156 +1,135 @@
-import looker_sdk
+import json
+from collections import defaultdict
+from typing import Dict, Optional
+
+from dbt_column_lineage.utils import get_dbt_project_dir
 
 
 class Looker:
     def __init__(self, logger):
         self.logger = logger
-        self.sdk = looker_sdk.init40()
-        self.ignore_folder_names = ['tmp', 'old', 'バックアップ', '作業', 'テスト']
-        self.ignore_dashboard_element_titles = ['表示期間', '無題', 'データ取込日時']
+        self.dashboard_json = None
+        self._load_dashboard_data()
 
-    def get_folder_dashboards(self) -> []:
-        self.folders = {}
-        res = self.sdk.all_folders(fields='id, parent_id, name, is_personal, is_personal_descendant, child_count')
-        for r in res:
-            # 個人用フォルダ関連は無視
-            if r.is_personal or r.is_personal_descendant:
-                continue
-            self.folders[r.id] = r
+    def _load_dashboard_data(self) -> None:
+        try:
+            dbt_project_dir = get_dbt_project_dir()
+            with open(f'{dbt_project_dir}/target/looker_analysis.json') as f:
+                self.dashboard_json = json.load(f)
+        except FileNotFoundError:
+            self.logger.error("Dashboard analysis file not found")
+            self.dashboard_json = None
+        except json.JSONDecodeError:
+            self.logger.error("Error parsing dashboard JSON file")
+            self.dashboard_json = None
+        except Exception as e:
+            self.logger.error(f"Error loading dashboard data: {str(e)}")
+            self.dashboard_json = None
 
-        ret = []
-        for v in self.folders.values():
-            # 子フォルダがある場合は無視
-            if v.child_count:
-                continue
-            # 再帰的にフォルダ名を取得
-            name = self._get_folder(v, v.name)
-            # 共有フォルダ以外無視
-            if not name.startswith('Shared'):
-                continue
-            ignore = False
-            # ignore_folder_names に含まれる文字列を含むフォルダは無視（「tmp」など）
-            for ifn in self.ignore_folder_names:
-                if ifn in name:
-                    ignore = True
-                    break
-            if ignore:
-                continue
+    def get_dashboards(self) -> Dict:
+        if not self.dashboard_json:
+            return {
+                'status': 'error',
+                'message': 'Dashboard data not available',
+                'total_dashboards': 0,
+                'data': []
+            }
 
-            # フォルダIDからダッシュボード一覧を取得
-            res = self.sdk.folder_dashboards(folder_id=v.id, fields='id,title')
+        try:
             dashboards = []
-            for d in res:
-                dashboards.append({'id': d.id, 'name': d.title})
-            ret.append({'id': v.id, 'name': name, 'dashboards': dashboards})
-        return ret
+            base_url = self.__get_base_url()
+
+            for dashboard in self.dashboard_json.get('dashboards', []):
+                folder_path = self.__get_folder_path(dashboard['folder_id'])
+
+                dashboards.append({
+                    'id': dashboard['id'],
+                    'title': dashboard['title'],
+                    'url': base_url + dashboard['url'],
+                    'folder_id': dashboard['folder_id'],
+                    'folder_path': folder_path
+                })
+
+            # Sort by folder path and title
+            sorted_dashboards = sorted(dashboards, key=lambda x: (x['folder_path'], x['title']))
+
+            return {
+                'status': 'success',
+                'total_dashboards': len(sorted_dashboards),
+                'data': sorted_dashboards
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error processing dashboards: {str(e)}")
+            return {
+                'status': 'error',
+                'message': str(e),
+                'total_dashboards': 0,
+                'data': []
+            }
 
     def get_dashboard_elements(self, dashboard_id: str) -> []:
-        dashboard = self.sdk.dashboard(dashboard_id=dashboard_id, fields='dashboard_elements,dashboard_layouts')
-        dashboard_layout_components = []
-        for item in dashboard.dashboard_layouts:
-            for layout_component in item.dashboard_layout_components:
-                dashboard_layout_components.append(layout_component)
+        if not self.dashboard_json:
+            return {}
 
-        # dashboard_layout の row, column でソート
-        sorted_dashboard_layout_components = sorted(dashboard_layout_components, key=lambda x: (x.row, x.column))
-        dashboard_elements = {}
-        for item in dashboard.dashboard_elements:
-            dashboard_elements[item.id] = item
+        dashboard_elements = self.dashboard_json.get('dashboard_elements', [])
+        filtered_elements = []
+        for e in dashboard_elements:
+            if e['dashboard_id'] == dashboard_id:
+                filtered_elements.append(e)
+        return filtered_elements
 
-        ret = []
-        # ソートされた layout_components から dashboard_element を取得
-        for layout_component in sorted_dashboard_layout_components:
-            item = dashboard_elements[layout_component.dashboard_element_id]
-            # ignore_dashboard_element_titles に含まれる文字列を含む要素は無視 (「無題」など)
-            ignore = False
-            for idt in self.ignore_dashboard_element_titles:
-                if idt in item.title:
-                    ignore = True
-                    break
-            if ignore:
+    def get_dashboard_dependencies(self, source: str, target_dashboard_ids: list[str], target_column: str = None) -> Dict:
+        if not self.dashboard_json:
+            return {}
+
+        dependencies = defaultdict(list)
+
+        for element in self.dashboard_json.get('dashboard_elements', []):
+            # テーブルの一致チェック
+            columns_by_table = element.get('columns', {})
+            if source.upper() not in [t.upper() for t in columns_by_table.keys()]:
                 continue
 
-            # result_maker が存在しない場合は無視
-            if item.result_maker is None:
+            # ターゲットテーブルのフィルタリング
+            if len(target_dashboard_ids) > 0 and element['dashboard_id'] not in target_dashboard_ids:
                 continue
 
-            ret.append({
-                'element_id': item.id,
-                'title': item.title,
-                'share_url': item.result_maker.query.share_url,
-                'slug': item.result_maker.query.slug,
-            })
+            # カラムレベルのチェック
+            if target_column:
+                source_upper = source.upper()
+                table_columns = columns_by_table.get(source_upper, [])
 
-        return ret
+                # 指定されたカラムが使用されているかチェック
+                if target_column.upper() not in [col.upper() for col in table_columns]:
+                    continue
 
-    def get_explore_fields(self, slug: str) -> []:
-        query = self.sdk.query_for_slug(slug)
-        res = self.sdk.lookml_model_explore(lookml_model_name=query.model, explore_name=query.view,
-                                            fields='fields, sql_table_name')
+            dashboard_id = element['dashboard_id']
+            dependencies[dashboard_id].append(element)
 
-        # table_name が AS で別名がついている場合は元のテーブル名を取得
-        if 'AS' in res.sql_table_name:
-            table_name = res.sql_table_name.split('AS')[0].strip()
-        else:
-            table_name = res.sql_table_name
+        return dependencies
 
-        # schema.table の場合は table のみ取得
-        if '.' in table_name:
-            table_name = table_name.split('.')[1]
+    def get_dashboard(self, dashboard_id: str) -> Optional[Dict]:
+        if not self.dashboard_json:
+            return None
 
-        query_sql = self.sdk.run_query(query.id, result_format='sql')
-        ret = {
-            'id': res.id,
-            'name': res.name,
-            'title': res.title,
-            'sql': query_sql,
-            'table_name': table_name,
-            'dimensions': [],
-            'measures': [],
-            'filters': []
-        }
+        dashboard = next(
+            (d for d in self.dashboard_json.get('dashboards', []) if d['id'] == dashboard_id),
+            None
+        )
 
-        for dimension in res.fields.dimensions:
-            if query.fields and dimension.name in query.fields:
-                dim_def = {
-                    'field_type': 'dimension',
-                    'name': dimension.name,
-                    'view_label': dimension.view_label,
-                    'label_short': dimension.label_short,
-                    'type': dimension.type,
-                    'sql': dimension.sql,
-                }
-                ret['dimensions'].append(dim_def)
-            elif query.filters and dimension.name in query.filters:
-                filter_def = {
-                    'field_type': 'filter',
-                    'name': dimension.name,
-                    'view_label': dimension.view_label,
-                    'label_short': dimension.label_short,
-                    'type': dimension.type,
-                    'sql': dimension.sql
-                }
-                ret['filters'].append(filter_def)
+        return dashboard
 
-        for measure in res.fields.measures:
-            if query.fields and measure.name in query.fields:
-                mes_def = {
-                    'field_type': 'measure',
-                    'name': measure.name,
-                    'view_label': measure.view_label,
-                    'label_short': measure.label_short,
-                    'type': measure.type,
-                    'sql': measure.sql
-                }
-                ret['measures'].append(mes_def)
+    def __get_folder_path(self, folder_id: str) -> str:
+        if not self.dashboard_json:
+            return ''
 
-        return ret
+        for folder in self.dashboard_json.get('folders', []):
+            if folder['id'] == folder_id:
+                return '/'.join(folder['path'])
+        return ''
 
-
-    def _get_folder(self, folder, folder_name: str) -> str:
-        if folder and folder.parent_id:
-            parent_folder = self.folders[folder.parent_id]
-            folder_name = f'{parent_folder.name}/{folder_name}'
-            return self._get_folder(parent_folder, folder_name)
-        return folder_name
-
+    def __get_base_url(self) -> str:
+        if not self.dashboard_json:
+            return ''
+        return self.dashboard_json.get('metadata', {}).get('base_url', '')

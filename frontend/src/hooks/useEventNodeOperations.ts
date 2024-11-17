@@ -25,6 +25,7 @@ export const useEventNodeOperations = (id: string) => {
       if (nodeMap.has(newNode.id)) {
         // 既存のノードを更新
         const existingNode = nodeMap.get(newNode.id)!
+        if (existingNode.type != 'tableNode') return
         nodeMap.set(newNode.id, {
           ...existingNode,
           data: {

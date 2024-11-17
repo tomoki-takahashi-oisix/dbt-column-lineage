@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { Edge } from 'reactflow'
 
+export type SourceModeType = 'dbt' | 'looker'
 type MessageType = 'success' | 'error' | 'info'
 
 type State = {
@@ -14,6 +15,10 @@ type State = {
   rightMaxDepth: boolean
   message: string | null
   messageType: MessageType | null
+  sourceMode: SourceModeType
+  submitClicked: boolean
+  isSubmitDisabled: boolean
+  headerSearchDisplayMessage: string
 }
 
 type Action = {
@@ -26,6 +31,11 @@ type Action = {
   setLeftMaxDepth: (v: boolean) => void
   setRightMaxDepth: (v: boolean) => void
   setMessage: (message: string | null, type: MessageType | null) => void
+  setSourceMode: (mode: SourceModeType) => void
+  triggerSubmitClicked: () => void
+  resetSubmitClicked: () => void
+  setIsSubmitDisabled: (v: boolean) => void
+  setHeaderSearchDisplayMessage: (v: string) => void
 }
 
 export const useStore = create<State & Action>()((set) => ({
@@ -39,6 +49,10 @@ export const useStore = create<State & Action>()((set) => ({
   rightMaxDepth: false,
   message: null,
   messageType: null,
+  sourceMode: 'dbt',
+  submitClicked: false,
+  isSubmitDisabled: false,
+  headerSearchDisplayMessage: 'Select search model',
   setOptions: (v:any) => set({options: v}),
   setShowColumn: (v:boolean) => set({showColumn: v}),
   setSidebarActive: (v:boolean) => set({sidebarActive: v}),
@@ -48,4 +62,9 @@ export const useStore = create<State & Action>()((set) => ({
   setLeftMaxDepth: (v: boolean) => set({ leftMaxDepth: v }),
   setRightMaxDepth: (v: boolean) => set({ rightMaxDepth: v }),
   setMessage: (message, type) => set({ message, messageType: type }),
+  setSourceMode: (mode) => set({ sourceMode: mode }),
+  triggerSubmitClicked: () => set({ submitClicked: true }),
+  resetSubmitClicked: () => set({ submitClicked: false }),
+  setIsSubmitDisabled: (v: boolean) => set({ isSubmitDisabled: v }),
+  setHeaderSearchDisplayMessage: (v: string) => set({ headerSearchDisplayMessage: v }),
 }))

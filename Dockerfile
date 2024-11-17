@@ -1,6 +1,8 @@
 FROM node:22 as node-builder
 WORKDIR /frontend
 
+ARG NEXT_PUBLIC_USE_LOOKER
+ENV NEXT_PUBLIC_USE_LOOKER $NEXT_PUBLIC_USE_LOOKER
 ENV NODE_ENV production
 COPY frontend/package-lock.json frontend/package.json ./
 RUN npm ci
