@@ -27,7 +27,7 @@ dbt docs generate
 export SQLGLOT_DIALECT=snowflake
 
 # Launch dbt-column-lineage with test.sql as the initial model
-dbt-coloumn-lineage run-params
+dbt-column-lineage run-params
 ```
 
 # development
