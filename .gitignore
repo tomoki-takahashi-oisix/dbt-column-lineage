@@ -2,8 +2,7 @@
 .envrc
 data/catalog.json
 data/manifest.json
-deploy_aws.sh
-pypi.sh
+justfile
 test/*.py
 out/*
 dist/*

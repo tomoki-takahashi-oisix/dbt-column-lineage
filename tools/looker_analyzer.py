@@ -1,12 +1,27 @@
 import json
+import logging
 import os
 import re
+import signal
 import typing
+import warnings
 from collections import defaultdict
 from typing import Optional, Dict
 
 import looker_sdk
 import sqlglot
+
+
+class TimeoutError(Exception):
+    pass
+
+
+def timeout_handler(signum, frame):
+    raise TimeoutError("SQL parsing timed out")
+
+# sqlglotの警告を抑制
+logging.getLogger('sqlglot').setLevel(logging.ERROR)
+warnings.filterwarnings('ignore', module='sqlglot')
 from looker_sdk.sdk.api40.models import WriteQuery, Folder
 from sqlglot.expressions import Select, Column, Table, Alias, Expression, Identifier, Binary
 
@@ -97,13 +112,22 @@ class LookerDashboardAnalyzer:
         }
 
 
-    def analyze_sql(self, sql: str) -> Optional[Dict] | None:
+    def analyze_sql(self, sql: str, timeout_sec: int = 120) -> Optional[Dict] | None:
         if not sql:
             return None
 
         try:
-            # Snowflake dialectでパース
-            ast = sqlglot.parse_one(sql, read=self.dialect)
+            # Lookerが生成するSQLは複数ステートメントを含む場合があるので
+            # 最初のSELECTステートメントのみをパースする
+            # コメント行で区切られているケースに対応
+            first_statement = sql.split('\n-- ')[0].strip()
+
+            # タイムアウト設定（パース＋AST走査全体に適用）
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout_sec)
+
+            # Snowflake dialectでパース (unsupportedエラーを抑制)
+            ast = sqlglot.parse_one(first_statement, read=self.dialect, error_level=sqlglot.ErrorLevel.WARN)
             tables = set()
             columns = defaultdict(set)
             alias_to_table = {}
@@ -203,12 +227,17 @@ class LookerDashboardAnalyzer:
                 if v and k != 'UNKNOWN'
             }
 
+            # タイマーをリセット
+            signal.alarm(0)
+
             return {
                 'tables': sorted(list(tables - {'UNKNOWN'})),
                 'columns': cleaned_columns,
                 'parsed_sql': str(ast)
             }
 
+        except TimeoutError:
+            raise  # タイムアウトは上位で処理
         except Exception as e:
             print(f'SQL parsing error for: {sql[:200]}...')
             print(f'Error: {str(e)}')
@@ -226,13 +255,19 @@ class LookerDashboardAnalyzer:
                 'elements': []
             }
 
-            for element in dashboard.dashboard_elements:
+            total_elements = len(dashboard.dashboard_elements)
+            for idx, element in enumerate(dashboard.dashboard_elements, 1):
                 if element.title in self.ignore_dashboard_element_titles:
                     continue
+
+                element_name = element.title or '(無題)'
+                print(f'  [{idx}/{total_elements}] {element_name}...', end='', flush=True)
 
                 try:
                     res = self.get_raw_sql_and_explore_url_from_dashboard_element(element)
                     if res and res['sql']:
+                        sql_len = len(res['sql'])
+                        print(f' SQL:{sql_len}文字...', end='', flush=True)
                         analysis = self.analyze_sql(res['sql'])
                         if analysis:
                             results['elements'].append({
@@ -241,8 +276,15 @@ class LookerDashboardAnalyzer:
                                 'explore_url': res['explore_url'],
                                 'sql_analysis': analysis
                             })
+                            print(' OK')
+                        else:
+                            print(' スキップ(パース失敗)')
+                    else:
+                        print(' スキップ(SQLなし)')
+                except TimeoutError:
+                    print(' タイムアウト')
                 except Exception as e:
-                    print(f'Error analyzing element {element.title} in dashboard {dashboard_id}: {str(e)}')
+                    print(f' エラー: {str(e)}')
 
             return results
         except Exception as e:
