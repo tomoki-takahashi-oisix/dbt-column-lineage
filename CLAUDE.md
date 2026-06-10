@@ -43,7 +43,14 @@ The `dbt-column-lineage` entrypoint (`main.cli`, Typer) has commands: `run` (lau
 
 ### Tests
 
-`pyproject.toml` declares a `dev` extra (`pytest`, `black`, `isort`), but `test/*.py` is gitignored and the files there are ad-hoc scripts, not a pytest suite. There is no CI test gate. Run `pytest` from the repo root if adding real tests.
+`pyproject.toml` declares a `dev` extra (`pytest`, `black`, `isort`). Note `.gitignore` has `test/*.py` (top-level only), so ad-hoc scratch scripts directly in `test/` are ignored — but the real unit suite lives in **`test/unit/`** (a subdir, tracked).
+
+```bash
+pip install -e ".[dev]"     # or: pip install pytest
+pytest                       # testpaths = ["test/unit"] (see pyproject)
+```
+
+`test/unit/` runs without a real dbt project/warehouse: `conftest.py` points `DbtSqlglot` at a tiny synthetic `manifest.json`/`catalog.json` under `test/unit/fixtures/target/` via `DBT_PROJECT_DIR`, and resets the `DbtSqlglot._instance` singleton per test. Current coverage centers on the **phantom-CTE filter** (the UNPIVOT lineage workaround for sqlglot#7727) plus a pure-sqlglot regression guard that fails if upstream sqlglot ever starts tracing UNPIVOT (a signal to drop the workaround). There is no CI test gate yet.
 
 ## Architecture
 

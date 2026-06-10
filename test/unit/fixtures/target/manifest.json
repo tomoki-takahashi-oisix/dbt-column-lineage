@@ -1,0 +1,60 @@
+{
+  "metadata": { "project_name": "test_proj" },
+  "nodes": {
+    "model.test_proj.base_model": {
+      "resource_type": "model",
+      "name": "base_model",
+      "unique_id": "model.test_proj.base_model",
+      "database": "db",
+      "schema": "analytics",
+      "config": { "materialized": "table" },
+      "depends_on": { "nodes": [] },
+      "columns": {
+        "id": { "name": "id", "type": "INT" },
+        "jan": { "name": "jan", "type": "INT" },
+        "feb": { "name": "feb", "type": "INT" }
+      },
+      "compiled_code": "select 1 as id, 1 as jan, 1 as feb"
+    },
+    "model.test_proj.child_model": {
+      "resource_type": "model",
+      "name": "child_model",
+      "unique_id": "model.test_proj.child_model",
+      "database": "db",
+      "schema": "analytics",
+      "config": { "materialized": "table" },
+      "depends_on": { "nodes": ["model.test_proj.base_model"] },
+      "columns": {
+        "id": { "name": "id", "type": "INT" },
+        "metric_name": { "name": "metric_name", "type": "STRING" },
+        "score": { "name": "score", "type": "INT" }
+      },
+      "compiled_code": "with src as (select id, jan, feb from db.analytics.base_model) select id, metric_name, score from src unpivot (score for metric_name in (jan, feb))"
+    },
+    "model.test_proj.plain_model": {
+      "resource_type": "model",
+      "name": "plain_model",
+      "unique_id": "model.test_proj.plain_model",
+      "database": "db",
+      "schema": "analytics",
+      "config": { "materialized": "view" },
+      "depends_on": { "nodes": ["model.test_proj.base_model"] },
+      "columns": {
+        "id": { "name": "id", "type": "INT" },
+        "jan": { "name": "jan", "type": "INT" }
+      },
+      "compiled_code": "select id, jan from db.analytics.base_model"
+    }
+  },
+  "sources": {},
+  "child_map": {
+    "model.test_proj.base_model": ["exposure.test_proj.some_exposure", "model.test_proj.child_model", "model.test_proj.plain_model"],
+    "model.test_proj.child_model": [],
+    "model.test_proj.plain_model": []
+  },
+  "parent_map": {
+    "model.test_proj.base_model": [],
+    "model.test_proj.child_model": ["model.test_proj.base_model"],
+    "model.test_proj.plain_model": ["model.test_proj.base_model"]
+  }
+}

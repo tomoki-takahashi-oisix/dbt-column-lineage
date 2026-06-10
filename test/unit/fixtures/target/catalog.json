@@ -1,0 +1,24 @@
+{
+  "nodes": {
+    "model.test_proj.base_model": {
+      "columns": {
+        "ID": { "name": "ID", "type": "INT" },
+        "JAN": { "name": "JAN", "type": "INT" },
+        "FEB": { "name": "FEB", "type": "INT" }
+      }
+    },
+    "model.test_proj.child_model": {
+      "columns": {
+        "ID": { "name": "ID", "type": "INT" },
+        "METRIC_NAME": { "name": "METRIC_NAME", "type": "STRING" },
+        "SCORE": { "name": "SCORE", "type": "INT" }
+      }
+    },
+    "model.test_proj.plain_model": {
+      "columns": {
+        "ID": { "name": "ID", "type": "INT" },
+        "JAN": { "name": "JAN", "type": "INT" }
+      }
+    }
+  }
+}
