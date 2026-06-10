@@ -2,7 +2,7 @@
 import React, { memo, useCallback, useMemo, useState } from 'react'
 import { faCopy } from '@fortawesome/free-regular-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faEllipsisV, faTimes } from '@fortawesome/free-solid-svg-icons'
+import { faEllipsisV, faTimes, faUpRightFromSquare } from '@fortawesome/free-solid-svg-icons'
 import { useSearchParams } from 'next/navigation'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { getColorClassForMaterialized } from '@/lib/utils'
@@ -15,9 +15,10 @@ interface TableNodeFrameProps {
   isClickableTableName: boolean
   content: React.ReactNode
   hideNode: () => void
+  docsUrl?: string | null
 }
 
-const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selected, materialized, isClickableTableName, content, hideNode}) => {
+const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selected, materialized, isClickableTableName, content, hideNode, docsUrl}) => {
   const setMessage = useStoreZustand((state) => state.setMessage)
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
@@ -42,6 +43,14 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
       console.error('Failed to copy text: ', err)
     }
   }, [tableName, setMessage])
+
+  // dbt docs の該当ノードページを別タブで開く(DBT_DOCS_BASE_URL 設定時のみ docsUrl が来る)
+  const handleClickOpenDocs = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (docsUrl) {
+      window.open(docsUrl, '_blank', 'noopener,noreferrer')
+    }
+  }, [docsUrl])
 
   const handleClickXmark = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -99,6 +108,16 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
                     <FontAwesomeIcon icon={faCopy} className="mr-2" />
                     Copy table name
                   </button>
+                  {docsUrl && (
+                    <button
+                      onClick={handleClickOpenDocs}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      title="Open in dbt docs"
+                    >
+                      <FontAwesomeIcon icon={faUpRightFromSquare} className="mr-2" />
+                      Open in dbt docs
+                    </button>
+                  )}
                 </div>
               </div>
             )}

@@ -16,6 +16,7 @@ type TableNodeDataType = {
   columns: string[]
   first: boolean
   last: boolean
+  docsUrl?: string | null
 }
 
 export type TableNodeType = Node<TableNodeDataType, 'tableNode'>
@@ -70,6 +71,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
       hideNode={hideNode}
       isClickableTableName={true}
       materialized={data.materialized}
+      docsUrl={data.docsUrl}
       content={
         <>
           {(firstNodeTable != data.name) && (
@@ -108,6 +110,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
       hideNode={hideNode}
       isClickableTableName={false}
       materialized={data.materialized}
+      docsUrl={data.docsUrl}
       content={
         <>
           {/* table => column 切替時に残るハンドル */}
