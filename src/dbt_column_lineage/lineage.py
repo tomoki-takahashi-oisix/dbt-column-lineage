@@ -8,7 +8,7 @@ from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 from sqlglot.optimizer import build_scope, Scope, qualify
 
-from dbt_column_lineage.constants import SQLGLOT_DIALECT, USE_LOOKER
+from dbt_column_lineage.constants import SQLGLOT_DIALECT, USE_LOOKER, DBT_DOCS_BASE_URL
 from dbt_column_lineage.looker import Looker
 from dbt_column_lineage.utils import get_dbt_project_dir
 
@@ -213,6 +213,20 @@ class DbtSqlglot:
             })
         return res
 
+    def __dbt_docs_url(self, dbt_node: dict) -> t.Optional[str]:
+        """dbt-docs SPA の該当ノードURLを返す。DBT_DOCS_BASE_URL 未設定、または
+        dbt ノードが解決できない(exposure/source/未知名 → {})場合は None。
+        unique_id は manifest が持つ正規値をそのまま使う(再構築しない)。
+        例: {base}/#!/model/model.proj.my_model"""
+        if not DBT_DOCS_BASE_URL or not dbt_node:
+            return None
+        unique_id = dbt_node.get('unique_id')
+        resource_type = dbt_node.get('resource_type')
+        if not unique_id or not resource_type:
+            return None
+        base = DBT_DOCS_BASE_URL.rstrip('/')
+        return f'{base}/#!/{resource_type}/{unique_id}'
+
     def __add_node(self, next_source, dbt_schema, filtered_columns, dbt_materialized, depth):
         node_columns = list(filtered_columns)
         node_id = self.__str_to_base_10_int_str(next_source)
@@ -241,6 +255,7 @@ class DbtSqlglot:
                 'materialized' : dbt_materialized,
                 'schema': dbt_schema, 'columns': node_columns,
                 'first': False, 'last': False,
+                'docsUrl': self.__dbt_docs_url(self.__get_dbt_node(next_source)),
             },
             'position': {'x': 0,'y': 0},
             # 'max_len': max_len, 'depth': depth,
@@ -569,7 +584,8 @@ class DbtSqlglot:
                     'columns': [],
                     'schema': ref_schema,
                     'materialized': ref_materialized,
-                    'first': False, 'last': False
+                    'first': False, 'last': False,
+                    'docsUrl': self.__dbt_docs_url(ref_dbt_node),
                 },
                 'position': {'x': 0,'y': 0},
                 'type': 'tableNode'

@@ -33,7 +33,9 @@ The frontend reaches the backend via `process.env.NEXT_PUBLIC_API_HOSTNAME` (emp
 - `SQLGLOT_DIALECT` — sqlglot dialect for parsing compiled SQL (default `snowflake`). Must match the dbt warehouse.
 - A dbt project with `target/manifest.json` and `target/catalog.json` (run `dbt docs generate`). The backend locates it via `DBT_PROJECT_DIR`, else auto-detects (`dbt_project.yml` in cwd / common locations — see `utils.find_dbt_project`).
 
-Other env flags (see `constants.py`): `USE_OAUTH`, `DEBUG_MODE`, `NEXT_PUBLIC_USE_LOOKER`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+Other env flags (see `constants.py`): `USE_OAUTH`, `DEBUG_MODE`, `NEXT_PUBLIC_USE_LOOKER`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `DBT_DOCS_BASE_URL`.
+
+- `DBT_DOCS_BASE_URL` — base URL of a dbt-docs site (e.g. `https://docs.example.com/dbt/latest`). When set, each table node's menu gains an **"Open in dbt docs"** item linking to `{base}/#!/{resource_type}/{unique_id}`. The full URL is built **server-side** in `lineage.py` (`__dbt_docs_url`, read from the manifest node — not reconstructed) and attached as `node.data.docsUrl`, so this is a true **runtime** env var (unlike `NEXT_PUBLIC_*`, which bake into the static frontend at build time). Unset → no `docsUrl` → the menu item is hidden.
 
 > ⚠️ `.envrc` is gitignored but currently contains **real secrets** (Google OAuth + Looker SDK credentials). Do not commit it or echo its contents into other files; treat those values as compromised if exposed.
 
