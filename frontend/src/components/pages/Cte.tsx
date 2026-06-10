@@ -385,7 +385,7 @@ export const Cte = () => {
           </div>
           <div style={{ height: mainWindowHeight, overflowY: 'auto' }}>
             {mode == 'description' &&
-              <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{description}</Markdown>}
+              <div className="markdown"><Markdown remarkPlugins={[remarkGfm]}>{description}</Markdown></div>}
             {mode == 'columns' && renderColumns({ columns })}
             {mode == 'lineage' &&
               <ReactFlowProvider>
