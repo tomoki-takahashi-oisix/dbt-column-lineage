@@ -1,15 +1,15 @@
-FROM node:23 as node-builder
+FROM node:24 AS node-builder
 WORKDIR /frontend
 
 ARG NEXT_PUBLIC_USE_LOOKER
-ENV NEXT_PUBLIC_USE_LOOKER $NEXT_PUBLIC_USE_LOOKER
+ENV NEXT_PUBLIC_USE_LOOKER=$NEXT_PUBLIC_USE_LOOKER
 COPY frontend/package-lock.json frontend/package.json ./
 RUN npm ci
 COPY frontend .
-ENV NODE_ENV production
+ENV NODE_ENV=production
 RUN npm run build
 
-FROM python:3.12 as python-builder
+FROM python:3.12 AS python-builder
 WORKDIR /app
 
 COPY ./requirements.txt .
