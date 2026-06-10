@@ -97,7 +97,7 @@ interface CteFlowProps {
   setEdges: Function
   nodesPositioned: boolean
   setNodesPositioned: Function
-  codeMirrorRef: React.RefObject<ReactCodeMirrorRef>
+  codeMirrorRef: React.RefObject<ReactCodeMirrorRef | null>
   entireMeta: Meta[]
 }
 
