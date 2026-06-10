@@ -119,7 +119,7 @@ export const Cl = () => {
       }
     } catch (e) {
       console.error('Failed to fetch lineage:', e)
-      setMessage('通信に失敗しました', 'error')
+      setMessage('Failed to fetch data', 'error')
       setTimeout(() => setMessage(null, null), 3000)
       return false
     }
@@ -181,8 +181,8 @@ export const Cl = () => {
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
                 <div className="flex flex-col items-center rounded-lg bg-white px-6 py-4 shadow-lg border border-gray-200">
                   <Loader className="animate-spin text-blue-600" size={28} />
-                  <span className="mt-2 text-sm font-medium text-gray-700">読み込み中…</span>
-                  <span className="mt-1 text-xs text-gray-500">モデルによっては初回の取得に時間がかかります</span>
+                  <span className="mt-2 text-sm font-medium text-gray-700">Loading…</span>
+                  <span className="mt-1 text-xs text-gray-500">The first load can take a while for some models</span>
                 </div>
               </div>
             )}
@@ -202,7 +202,7 @@ export const Cl = () => {
                     role="alert"
                   >
                     <AlertTriangle className="mr-2 h-4 w-4 shrink-0" />
-                    深さ上限に達したため、系統の一部を省略しています（さらに上流/下流があります）。
+                    Lineage was truncated — some upstream/downstream nodes are omitted.
                   </div>
                 </Panel>
               )}

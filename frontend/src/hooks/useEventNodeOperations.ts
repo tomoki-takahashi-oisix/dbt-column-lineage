@@ -95,7 +95,7 @@ export const useEventNodeOperations = (id: string) => {
     } catch (e) {
       // 非JSONレスポンス(502/504やログインHTML等)や通信失敗でも必ずローディングを解除する
       console.error('Failed to fetch reverse lineage:', e)
-      alert('リネージの取得に失敗しました')
+      alert('Failed to fetch lineage')
     } finally {
       setLoading(false)
     }
@@ -137,7 +137,7 @@ export const useEventNodeOperations = (id: string) => {
     } catch (e) {
       // 非JSONレスポンス(502/504やログインHTML等)や通信失敗でも必ずローディングを解除する
       console.error('Failed to fetch single lineage:', e)
-      alert('リネージの取得に失敗しました')
+      alert('Failed to fetch lineage')
     } finally {
       setLoading(false)
     }
