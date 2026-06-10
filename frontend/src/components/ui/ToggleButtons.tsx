@@ -1,19 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { Edge, useReactFlow } from '@xyflow/react'
-import { toBlob } from 'html-to-image'
-import { Camera, Table, Columns3 } from 'lucide-react'
+import { Table, Columns3 } from 'lucide-react'
 
 const ToggleButtons = () => {
   const { getEdges, setEdges } = useReactFlow()
-  const { fitView } = useReactFlow()
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
   const setClearNodePosition = useStoreZustand((state) => state.setClearNodePosition)
   const columnModeEdges = useStoreZustand((state) => state.columnModeEdges)
   const setColumnModeEdges = useStoreZustand((state) => state.setColumnModeEdges)
   const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
-  const setMessage = useStoreZustand((state) => state.setMessage)
+  const editMode = useStoreZustand((state) => state.editMode)
 
   const [activeButton, setActiveButton] = useState('column')
 
@@ -82,63 +80,33 @@ const ToggleButtons = () => {
     setClearNodePosition(true)
   }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges, setColumnModeEdges, setRightMaxDepth])
 
-  const copyToClipboard = useCallback(async() => {
-    const flowElement = document.querySelector('.react-flow__viewport') as HTMLElement
-
-    // ビューをフィットさせる
-    window.requestAnimationFrame(() => fitView())
-    await new Promise(resolve => setTimeout(resolve, 100))
-    const blob = await toBlob(flowElement, { backgroundColor: '#fff', })
-    if (blob) {
-      try {
-        let data = [new window.ClipboardItem({ 'image/png': blob })]
-        await navigator.clipboard.write(data)
-        const params = new URLSearchParams(window.location.search).toString()
-        setMessage('Successfully copied to clipboard!:\n\n' + params, 'success')
-        setTimeout(() => setMessage(null, null), 6000) // Clear message after 3 seconds
-      } catch (err) {
-        setMessage('Failed to copy to clipboard', 'error')
-        console.error('Failed to copy:', err)
-        setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
-      }
+  // 編集はカラム名を扱うので、編集に入るとき(editMode が true 化)で Table 表示なら Column へ自動切替する。
+  // editMode の遷移時だけ反応させたいので deps は editMode のみ(handleToggleButton/showColumn は意図的に除外)。
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (editMode && !showColumn) {
+      handleToggleButton('column')
     }
-  }, [fitView, setMessage])
+  }, [editMode])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex items-center space-x-4">
-        <div className="inline-flex rounded-md shadow-xs" role="group">
-          {buttons.map((button) => (
-            <button
-              key={button.id}
-              type="button"
-              className={`px-4 py-2 text-sm font-medium border flex items-center whitespace-nowrap ${
-                activeButton === button.id
-                  ? 'bg-blue-500 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-              } ${
-                button.id === buttons[0].id
-                  ? 'rounded-l-lg'
-                  : button.id === buttons[buttons.length - 1].id
-                    ? 'rounded-r-lg'
-                    : ''
-              }`}
-              onClick={() => handleToggleButton(button.id)}
-            >
-              <button.icon className="mr-2" size={16} />
-              <span>{button.label}</span>
-            </button>
-          ))}
-        </div>
+    <div className="inline-flex w-fit self-start overflow-hidden rounded-lg border border-gray-200 shadow-md" role="group">
+      {buttons.map((button) => (
         <button
-          onClick={copyToClipboard}
-          className="rounded-sm px-4 py-2 text-sm font-medium border bg-blue-500 text-white border-blue-600 flex items-center hover:bg-blue-600 transition-colors duration-200"
-          aria-label="Copy to clipboard"
+          key={button.id}
+          type="button"
+          className={`px-2.5 py-1.5 text-xs font-medium flex items-center whitespace-nowrap ${
+            activeButton === button.id
+              ? 'bg-blue-500 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
+          }`}
+          onClick={() => handleToggleButton(button.id)}
         >
-          <Camera className="mr-2" size={16} />
-          <span>Copy to clipboard</span>
+          <button.icon className="mr-1" size={15} />
+          <span>{button.label}</span>
         </button>
-      </div>
+      ))}
     </div>
   )
 }

@@ -28,10 +28,10 @@ class DbtSqlglot:
         self.edges = []
         self.target_dashboard_ids = []
         self.request_depth = request_depth
-        # depth 上限(request_depth)で実際に系統を打ち切ったか。未探索の依存が
-        # 残ったまま深さ制限で止まった場合のみ True(自然に末端へ達した場合は False)。
-        # 時間予算/ノード数上限による打ち切りでも True を立てる(フロントのバナーは共通)。
-        self.depth_truncated = False
+        # 時間予算(MAX_LINEAGE_SECONDS)による打ち切りが起きたか。フロントの truncated バナーは
+        # この“想定外の保護打ち切り”専用。要求 depth に達して止まるのは設計どおりなので含めない
+        # (depth=1 のテーブル表示で毎回バナーが出てしまう問題を避ける)。
+        self.budget_truncated = False
         # 時間予算の締切(MAX_LINEAGE_SECONDS>0 のときだけ。それ以外は None=無制限)。
         self._deadline = (time.monotonic() + MAX_LINEAGE_SECONDS) if MAX_LINEAGE_SECONDS and MAX_LINEAGE_SECONDS > 0 else None
 
@@ -158,13 +158,13 @@ class DbtSqlglot:
 
 
     def ret_edges_nodes(self) -> dict:
-        return {'edges': self.edges, 'nodes': self.nodes, 'truncated': self.depth_truncated}
+        return {'edges': self.edges, 'nodes': self.nodes, 'truncated': self.budget_truncated}
 
     def _budget_exceeded(self) -> bool:
         """時間予算(MAX_LINEAGE_SECONDS)を超えていれば打ち切りフラグを立てて True。
         コストが横幅(ハブ列の全下流など)の場合に、形状に依らず処理を止める保護。"""
         if self._deadline is not None and time.monotonic() > self._deadline:
-            self.depth_truncated = True
+            self.budget_truncated = True
             return True
         return False
 
@@ -614,9 +614,7 @@ class DbtSqlglot:
         depth = depth + 1
         if self.request_depth != -1 and depth > self.request_depth:
             self.logger.info(f'depth={depth} reached')
-            # 未探索の依存が残っているなら、深さ上限で打ち切った
-            if deps_refs:
-                self.depth_truncated = True
+            # 要求 depth に達して止まるのは設計どおり。バナー(budget_truncated)は立てない。
             return
 
         for deps_unique_id in deps_refs:
@@ -700,9 +698,7 @@ class DbtSqlglot:
         next_found = False
         for after_base_column, after_next_sources_columns in after_next_sources_columns_dict.items():
             if self.request_depth != -1 and depth > self.request_depth:
-                # まだ辿るべき上流/下流(labels)があるのに深さ上限で止めた = 打ち切り
-                if after_next_sources_columns.get('labels'):
-                    self.depth_truncated = True
+                # 要求 depth に達して止まるのは設計どおり。バナー(budget_truncated)は立てない。
                 continue
             after_next_sources = after_next_sources_columns['labels']
             after_next_columns = after_next_sources_columns['columns']

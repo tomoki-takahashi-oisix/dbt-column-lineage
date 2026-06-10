@@ -29,6 +29,11 @@ import { Loader, AlertTriangle } from 'lucide-react'
 import ToggleButtons from '@/components/ui/ToggleButtons'
 import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
 import { DashboardNode, DashboardNodeProps } from '@/components/molecules/DashboardNode'
+import { EditableTableNode, EditableTableNodeProps } from '@/components/molecules/EditableTableNode'
+import { NoteNode, NoteNodeProps } from '@/components/molecules/NoteNode'
+import { EditToolbar } from '@/components/organisms/EditToolbar'
+import { CanvasActions } from '@/components/organisms/CanvasActions'
+import { deserializeDesign, DesignSnapshot } from '@/lib/design'
 
 interface QueryParams {
   dashboardId?: string
@@ -74,6 +79,8 @@ export const Cl = () => {
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
   const truncated = useStoreZustand((state) => state.truncated)
   const setTruncated = useStoreZustand((state) => state.setTruncated)
+  const setSourceMode = useStoreZustand((state) => state.setSourceMode)
+  const editMode = useStoreZustand((state) => state.editMode)
 
   const searchParams = useSearchParams()
 
@@ -133,7 +140,15 @@ export const Cl = () => {
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
-      setNodes((nds) => applyNodeChanges(changes, nds)),
+      setNodes((nds) => {
+        const next = applyNodeChanges(changes, nds)
+        // ドラッグで動かされたノードは data.manual を立て、以降の再レイアウトで戻らないようにする
+        const movedIds = new Set(
+          changes.filter((c): c is NodeChange & { id: string } => c.type === 'position').map((c) => c.id),
+        )
+        if (movedIds.size === 0) return next
+        return next.map((n) => (movedIds.has(n.id) ? { ...n, data: { ...n.data, manual: true } } : n))
+      }),
     [setNodes],
   )
   const onEdgesChange = useCallback(
@@ -141,14 +156,30 @@ export const Cl = () => {
       setEdges((eds) => applyEdgeChanges(changes, eds)),
     [setEdges],
   )
+  // ユーザーが手で引いた線には data.custom を刻印し、マージ保護・区別描画の起点にする
   const onConnect = useCallback(
-    (connection: Connection) => setEdges((eds) => addEdge(connection, eds)),
+    (connection: Connection) =>
+      setEdges((eds) => addEdge({ ...connection, data: { custom: true }, style: { stroke: '#7c3aed', strokeDasharray: '6 4' } }, eds)),
     [setEdges],
   )
 
+  // スナップショット(URL/Import)を適用する。全ノードを manual 扱いにして dagre の再配置を抑止し、
+  // 凍結した位置をそのまま再現する。setNodesPositioned(false) は fitView のトリガー。
+  const applySnapshot = useCallback((snapshot: DesignSnapshot) => {
+    setShowColumn(snapshot.view.showColumn)
+    setOptions({ rankdir: snapshot.view.rankdir })
+    setSourceMode(snapshot.view.sourceMode)
+    setNodes(snapshot.nodes.map((n) => ({ ...n, data: { ...n.data, manual: true } })))
+    setEdges(snapshot.edges)
+    setTruncated(false)
+    setNodesPositioned(false)
+  }, [setShowColumn, setOptions, setSourceMode, setNodes, setEdges, setTruncated])
+
   const nodeTypes = useMemo(() => ({
     tableNode: (props: TableNodeProps) => <TableNode {...props} />,
-    dashboardNode: (props: DashboardNodeProps) => <DashboardNode {...props} />
+    dashboardNode: (props: DashboardNodeProps) => <DashboardNode {...props} />,
+    editableTableNode: (props: EditableTableNodeProps) => <EditableTableNode {...props} />,
+    noteNode: (props: NoteNodeProps) => <NoteNode {...props} />,
   }), [])
 
   // 外部から setRefreshNodesPosition が呼ばれた場合
@@ -170,6 +201,21 @@ export const Cl = () => {
   useEffect(() => {
     setOptions({ rankdir: 'RL' })
   }, [setOptions])
+
+  // URL に ?design=... があればスナップショットを復元する。マウント時に1回だけ実行する。
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const encoded = searchParams.get('design')
+    if (!encoded) return
+    const snapshot = deserializeDesign(encoded)
+    if (snapshot) {
+      applySnapshot(snapshot)
+    } else {
+      setMessage('Invalid or corrupted design URL', 'error')
+      setTimeout(() => setMessage(null, null), 3000)
+    }
+  }, [])
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   return (
     <div>
@@ -194,7 +240,11 @@ export const Cl = () => {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               nodeTypes={nodeTypes}
+              nodesConnectable={editMode}
             >
+              <Panel position="top-center">
+                <EditToolbar nodes={nodes} edges={edges} setNodes={setNodes} applySnapshot={applySnapshot} />
+              </Panel>
               {truncated && (
                 <Panel position="top-center">
                   <div
@@ -253,6 +303,17 @@ export const Cl = () => {
                   </div>
                 </div>
                 }
+              </Panel>
+              {editMode && (
+                <Panel position="bottom-left" style={{ marginLeft: 50, marginBottom: 15 }}>
+                  <span className="flex items-center gap-1.5 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white shadow-md">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                    EDIT MODE
+                  </span>
+                </Panel>
+              )}
+              <Panel position="bottom-right" style={{ marginBottom: 28 }}>
+                <CanvasActions />
               </Panel>
               <Controls />
               <Background style={{ backgroundColor: '#f5f5f5' }} />

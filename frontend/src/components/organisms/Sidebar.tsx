@@ -52,9 +52,13 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], options: {rankdir: st
         break;
     }
 
-    node.position = {
-      x: nodeWithPosition.x - nodeWithPosition.width / 2 + Math.random() / 1000,
-      y: nodeWithPosition.y - nodeWithPosition.height / 2,
+    // 手動配置(ドラッグ済み・URL復元・カスタムノード = data.manual)の位置は
+    // dagre で上書きしない。スナップショット再現性のため。
+    if (!(node.data as { manual?: boolean } | undefined)?.manual) {
+      node.position = {
+        x: nodeWithPosition.x - nodeWithPosition.width / 2,
+        y: nodeWithPosition.y - nodeWithPosition.height / 2,
+      }
     }
 
     return node
