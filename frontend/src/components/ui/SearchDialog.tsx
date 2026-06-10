@@ -51,7 +51,7 @@ export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
   }, [wrapperRef])
 
   return (
-    <div ref={wrapperRef} className="relative inline-block text-left mr-2 w-[60vw]">
+    <div ref={wrapperRef} className="relative inline-block text-left mr-2 w-[60vw] max-w-3xl">
       <button
         type="button"
         className="inline-flex justify-between rounded-md border border-gray-300 shadow-xs px-4 py-2 bg-white text-sm font-medium hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500 mr-2 w-full"
