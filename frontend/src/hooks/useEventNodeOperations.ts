@@ -62,71 +62,85 @@ export const useEventNodeOperations = (id: string) => {
   // リバースリネージしてノードを追加する
   const addReverseLineage = useCallback(async (id: string, source: string, column: string) => {
     setLoading(true)
-    const columns = JSON.stringify({ [source]: [column] })
-    const query = new URLSearchParams({sources:source, columns, depth: '1', show_column: showColumn.toString(), reverse: 'true'})
-    if (rightMaxDepth) {
-      query.set('depth', '-1')
-    } else {
-      query.set('depth', '1')
-    }
-    const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
-    const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
-    const data = await response.json()
-    setLoading(false)
-    if (response.status != 200) {
-      alert(data['error'])
-      return
-    }
-    // レスポンスがない場合は最後のノードの判定リストに追加
-    if (data['edges'].length == 0) {
-      if (showColumn) {
-        setLastNodeColumns((cols) => [...cols, column])
+    try {
+      const columns = JSON.stringify({ [source]: [column] })
+      const query = new URLSearchParams({sources:source, columns, depth: '1', show_column: showColumn.toString(), reverse: 'true'})
+      if (rightMaxDepth) {
+        query.set('depth', '-1')
       } else {
-        setLastNodeTable(source)
+        query.set('depth', '1')
       }
-      return
-    }
-    const mergedNodes = mergeNodes(getNodes(), data['nodes'])
-    const mergedEdges = mergeEdges(getEdges(), data['edges'])
-    setNodes(mergedNodes)
-    setEdges(mergedEdges)
+      const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
+      const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
+      const data = await response.json()
+      if (response.status != 200) {
+        alert(data['detail'])
+        return
+      }
+      // レスポンスがない場合は最後のノードの判定リストに追加
+      if (data['edges'].length == 0) {
+        if (showColumn) {
+          setLastNodeColumns((cols) => [...cols, column])
+        } else {
+          setLastNodeTable(source)
+        }
+        return
+      }
+      const mergedNodes = mergeNodes(getNodes(), data['nodes'])
+      const mergedEdges = mergeEdges(getEdges(), data['edges'])
+      setNodes(mergedNodes)
+      setEdges(mergedEdges)
 
-    setClearNodePosition(true)
+      setClearNodePosition(true)
+    } catch (e) {
+      // 非JSONレスポンス(502/504やログインHTML等)や通信失敗でも必ずローディングを解除する
+      console.error('Failed to fetch reverse lineage:', e)
+      alert('リネージの取得に失敗しました')
+    } finally {
+      setLoading(false)
+    }
   }, [getNodes, getEdges, showColumn, rightMaxDepth, mergeNodes, mergeEdges, setNodes, setEdges, setClearNodePosition, setLoading])
 
   // シングルリネージしてノードを追加する
   const addSingleLineage = useCallback(async (source: string, column: string) => {
     setLoading(true)
-    const columns = JSON.stringify({ [source]: [column] })
-    const query = new URLSearchParams({ sources:source, columns, depth: '1', show_column: showColumn.toString() })
-    if (leftMaxDepth) {
-      query.set('depth', '-1')
-    } else {
-      query.set('depth', '1')
-    }
-    const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
-    const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
-    const data = await response.json()
-    setLoading(false)
-    if (response.status != 200) {
-      alert(data['error'])
-      return
-    }
-    if (data['edges'].length == 0) {
-      if (showColumn) {
-        setFirstNodeColumns((cols) => [...cols, column])
+    try {
+      const columns = JSON.stringify({ [source]: [column] })
+      const query = new URLSearchParams({ sources:source, columns, depth: '1', show_column: showColumn.toString() })
+      if (leftMaxDepth) {
+        query.set('depth', '-1')
       } else {
-        setFirstNodeTable(source)
+        query.set('depth', '1')
       }
-      return
-    }
-    const mergedNodes = mergeNodes(getNodes(), data['nodes'])
-    const mergedEdges = mergeEdges(getEdges(), data['edges'])
-    setNodes(mergedNodes)
-    setEdges(mergedEdges)
-    // updateNodeInternals(id)
+      const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
+      const response = await fetch(`${hostName}/api/v1/lineage?${query}`)
+      const data = await response.json()
+      if (response.status != 200) {
+        alert(data['detail'])
+        return
+      }
+      if (data['edges'].length == 0) {
+        if (showColumn) {
+          setFirstNodeColumns((cols) => [...cols, column])
+        } else {
+          setFirstNodeTable(source)
+        }
+        return
+      }
+      const mergedNodes = mergeNodes(getNodes(), data['nodes'])
+      const mergedEdges = mergeEdges(getEdges(), data['edges'])
+      setNodes(mergedNodes)
+      setEdges(mergedEdges)
+      // updateNodeInternals(id)
 
-    setClearNodePosition(true)
+      setClearNodePosition(true)
+    } catch (e) {
+      // 非JSONレスポンス(502/504やログインHTML等)や通信失敗でも必ずローディングを解除する
+      console.error('Failed to fetch single lineage:', e)
+      alert('リネージの取得に失敗しました')
+    } finally {
+      setLoading(false)
+    }
   }, [getNodes, getEdges, showColumn, leftMaxDepth, mergeNodes, mergeEdges, setNodes, setEdges, setClearNodePosition, setLoading])
 
   // ノードを非表示にする
