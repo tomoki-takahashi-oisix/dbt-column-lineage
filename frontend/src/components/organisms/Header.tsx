@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({ handleFetchData }) => {
           </div>
         </div>
       )}
-      <header className="bg-white border-b-[1px]">
+      <header className="bg-white border-b">
         <nav className="container mr-auto flex flex-wrap flex-col md:flex-row items-center">
           <a className="flex title-font font-medium items-center text-gray-900 mb-4 md:mb-0">
             <span className="ml-3 text-xl">
@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ handleFetchData }) => {
             />
             <button
               type="button"
-              className="rounded px-3 py-1.5 text-s font-medium border bg-blue-400 text-white border-blue-400 flex items-center hover:bg-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-sm px-3 py-1.5 text-s font-medium border bg-blue-400 text-white border-blue-400 flex items-center hover:bg-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={triggerSubmitClicked}
               disabled={isSubmitDisabled}
             >

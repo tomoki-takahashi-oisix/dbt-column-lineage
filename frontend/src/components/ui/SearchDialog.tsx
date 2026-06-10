@@ -51,7 +51,7 @@ export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
     <div ref={wrapperRef} className="relative inline-block text-left mr-2 w-[60vw]">
       <button
         type="button"
-        className="inline-flex justify-between rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500 mr-2 w-full"
+        className="inline-flex justify-between rounded-md border border-gray-300 shadow-xs px-4 py-2 bg-white text-sm font-medium hover:bg-gray-50 focus:outline-hidden focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-indigo-500 mr-2 w-full"
         onClick={() => setIsDialogOpen(!isDialogOpen)}
       >
         <span className="text-gray-700">
@@ -61,7 +61,7 @@ export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
       </button>
 
       <div
-        className={`origin-top-left absolute left-0 mt-2 w-[900px] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50 ${
+        className={`origin-top-left absolute left-0 mt-2 w-[900px] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-hidden z-50 ${
           isDialogOpen ? 'block' : 'hidden'
         }`}
       >
@@ -78,7 +78,7 @@ export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
                       onClick={() => changeSourceMode(tab.id as SourceModeType)}
                       className={`px-3 py-1.5 rounded-t transition-colors duration-150 relative ${
                         sourceMode === tab.id
-                          ? 'bg-blue-500 text-white shadow-sm font-medium'
+                          ? 'bg-blue-500 text-white shadow-xs font-medium'
                           : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >

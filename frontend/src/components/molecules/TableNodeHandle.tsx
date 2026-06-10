@@ -62,7 +62,7 @@ const TableNodeHandle: React.FC<TableNodeHandleProps> = ({ type, position, id, i
         }}
       />
       { onDelete && <button
-        className="w-6 h-6 flex items-center justify-center bg-white rounded-full border border-gray-300 hover:bg-gray-100 focus:outline-none"
+        className="w-6 h-6 flex items-center justify-center bg-white rounded-full border border-gray-300 hover:bg-gray-100 focus:outline-hidden"
         style={{
           position: 'absolute',
           top: '50%',

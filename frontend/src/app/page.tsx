@@ -30,7 +30,7 @@ export default function Page() {
                 <button
                   onClick={() => router.push('/cl')}
                   type="button"
-                  className="text-white bg-blue-400 hover:bg-blue-500 focus:ring-4 focus:outline-none font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2"
+                  className="text-white bg-blue-400 hover:bg-blue-500 focus:ring-4 focus:outline-hidden font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2"
                 >
                   Try it out
                 </button>

@@ -78,7 +78,7 @@ const TableNodeMoreColumns: React.FC<TableNodeMoreColumnsProps> = ({ schema, tab
     <div ref={nodeRef}>
       <div className="mt-2 border-t pt-2 flex justify-center">
         <button
-          className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 focus:outline-none"
+          className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 focus:outline-hidden"
           onClick={handleToggleColumns}
           aria-label={isOpen ? "Collapse columns" : "Expand columns"}
         >
@@ -103,7 +103,7 @@ const TableNodeMoreColumns: React.FC<TableNodeMoreColumnsProps> = ({ schema, tab
                   className="flex flex-col relative cursor-pointer hover:bg-gray-100 transition-colors duration-200 py-2 px-6"
                   onClick={() => handleColumnClick(column)}
                 >
-                  <span className="hover:underline flex-grow truncate">{column.label}</span>
+                  <span className="hover:underline grow truncate">{column.label}</span>
                   {column.description && (
                     <span className="text-xs text-gray-500 mt-1 truncate" title={column.description}>
                       {column.description}

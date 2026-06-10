@@ -236,7 +236,7 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
     {isCl && (
       <div>
         <div className="font-medium text-gray-700 mb-2">View Mode</div>
-        <div className="inline-flex rounded-md shadow-sm mb-4" role="group">
+        <div className="inline-flex rounded-md shadow-xs mb-4" role="group">
           {viewModeButtons.map((button) => (
             <button
               key={button.id}
