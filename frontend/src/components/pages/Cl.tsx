@@ -45,6 +45,16 @@ export const Cl = () => {
 
   const setMessage = useStoreZustand((state) => state.setMessage)
   const loading = useStoreZustand((state) => state.loading)
+  // ロードが5秒以上続くときだけオーバーレイを表示(短時間のロードでのチラつきを防ぐ)
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false)
+  useEffect(() => {
+    if (!loading) {
+      setShowLoadingOverlay(false)
+      return
+    }
+    const timer = setTimeout(() => setShowLoadingOverlay(true), 5000)
+    return () => clearTimeout(timer)
+  }, [loading])
   const sidebarActive = useStoreZustand((state) => state.sidebarActive)
   const options = useStoreZustand((state) => state.options)
   const setOptions = useStoreZustand((state) => state.setOptions)
@@ -146,7 +156,7 @@ export const Cl = () => {
       <div className="flex flex-wrap">
         <ReactFlowProvider>
           <div className={`relative ${sidebarActive ? "w-5/6" : "w-[calc(100%-20px)]"}`} style={{ height: windowHeight - 55 }}>
-            {loading && (
+            {showLoadingOverlay && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
                 <div className="flex flex-col items-center rounded-lg bg-white px-6 py-4 shadow-lg border border-gray-200">
                   <Loader className="animate-spin text-blue-600" size={28} />
