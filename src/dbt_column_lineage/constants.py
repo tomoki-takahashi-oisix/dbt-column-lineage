@@ -19,7 +19,8 @@ DBT_DOCS_BASE_URL = os.getenv('DBT_DOCS_BASE_URL')
 # 未設定時はプロセス毎にランダム生成(=単一プロセス前提の従来挙動)。
 SESSION_SECRET = os.getenv('SESSION_SECRET')
 
-# リネージ探索の深さ上限。-1 で無制限(従来挙動)。0 以上を設定すると、
-# request の depth が無制限(-1)または上限超のとき、この値にクランプして
-# 過大なクエリ1本がワーカーを占有/OOM するのを防ぐ。
-MAX_LINEAGE_DEPTH = int(os.getenv('MAX_LINEAGE_DEPTH', '-1'))
+# リネージ探索の時間予算(秒)。-1 で無制限(従来挙動)。0 超を設定すると、再帰や
+# リバース索引構築がこの時間を超えた時点で打ち切り(truncated)、それまでの結果を返す。
+# コストが深さでなく横幅(ハブ列の全下流など)の場合に効く本命の保護。本番では
+# ゲートウェイのリクエストタイムアウト未満に設定し、504 でなく 200+truncated を返す。
+MAX_LINEAGE_SECONDS = float(os.getenv('MAX_LINEAGE_SECONDS', '-1'))

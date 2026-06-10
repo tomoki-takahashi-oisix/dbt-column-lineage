@@ -8,7 +8,7 @@ from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 from sqlglot.optimizer import build_scope, Scope, qualify
 
-from dbt_column_lineage.constants import SQLGLOT_DIALECT, USE_LOOKER, DBT_DOCS_BASE_URL
+from dbt_column_lineage.constants import SQLGLOT_DIALECT, USE_LOOKER, DBT_DOCS_BASE_URL, MAX_LINEAGE_SECONDS
 from dbt_column_lineage.looker import Looker
 from dbt_column_lineage.utils import get_dbt_project_dir
 
@@ -30,7 +30,10 @@ class DbtSqlglot:
         self.request_depth = request_depth
         # depth 上限(request_depth)で実際に系統を打ち切ったか。未探索の依存が
         # 残ったまま深さ制限で止まった場合のみ True(自然に末端へ達した場合は False)。
+        # 時間予算/ノード数上限による打ち切りでも True を立てる(フロントのバナーは共通)。
         self.depth_truncated = False
+        # 時間予算の締切(MAX_LINEAGE_SECONDS>0 のときだけ。それ以外は None=無制限)。
+        self._deadline = (time.monotonic() + MAX_LINEAGE_SECONDS) if MAX_LINEAGE_SECONDS and MAX_LINEAGE_SECONDS > 0 else None
 
         if self._initialized:
             return
@@ -156,6 +159,14 @@ class DbtSqlglot:
 
     def ret_edges_nodes(self) -> dict:
         return {'edges': self.edges, 'nodes': self.nodes, 'truncated': self.depth_truncated}
+
+    def _budget_exceeded(self) -> bool:
+        """時間予算(MAX_LINEAGE_SECONDS)を超えていれば打ち切りフラグを立てて True。
+        コストが横幅(ハブ列の全下流など)の場合に、形状に依らず処理を止める保護。"""
+        if self._deadline is not None and time.monotonic() > self._deadline:
+            self.depth_truncated = True
+            return True
+        return False
 
 
     def cte_dependency(self, source: str, columns: []):
@@ -567,6 +578,8 @@ class DbtSqlglot:
         return refs
 
     def __table_dependencies_recursive(self, unique_id, reverse, depth):
+        if self._budget_exceeded():
+            return
         self.logger.info(f'request_depth={self.request_depth}, depth={depth}')
         ref_dbt_node = self.dbt_manifest_nodes.get(unique_id)
         if ref_dbt_node is None:
@@ -641,6 +654,8 @@ class DbtSqlglot:
         return
 
     def __column_lineage_recursive(self, base_source: str, next_source: str, base_column: str, next_columns: [], depth: int) -> None:
+        if self._budget_exceeded():
+            return
         dbt_catalog = self.__get_dbt_catalog(next_source)
         dbt_node = self.__get_dbt_node(next_source)
         dbt_compiled_code = dbt_node.get('compiled_code')
@@ -718,7 +733,15 @@ class DbtSqlglot:
         refs = self.dbt_manifest_child_map.get(unique_id, [])
 
         entries = []
+        complete = True
         for ref in refs:
+            # 子モデルごとに parse_one+lineage() を回す重いループ。時間予算を超えたら
+            # ここで打ち切る(コストは反復そのものなので entries 数では縛れない)。
+            # 部分的な索引はキャッシュ汚染を招くため complete=False で返し、呼び出し側で
+            # キャッシュしない。
+            if self._budget_exceeded():
+                complete = False
+                break
             ref_dbt_node = self.dbt_manifest_nodes.get(ref)
             if ref_dbt_node is None:
                 self.logger.info('ref_dbt_node is None')
@@ -786,16 +809,20 @@ class DbtSqlglot:
                         'ref_column': ref_column_name,
                         'columns': item_columns,
                     })
-        return entries
+        return entries, complete
 
     def __reverse_column_lineage(self, source: str, column: str):
         # source 単位で索引を構築・キャッシュする。キャッシュは per-request リセット
         # (__init__ の nodes/edges クリア)の外で保持されるため、同一プロセス内の
         # 2回目以降のクエリ(同 source の任意 column)は再計算なしの即時参照になる。
+        # 注: 索引は列非依存(source の全子カラムを索引化)なので、時間予算で途中打ち切り
+        # した不完全な索引をキャッシュすると、別カラムの照会に流用されて黙って不完全に
+        # なる。よって complete な索引のみキャッシュする(打ち切り時は今回分だけ使う)。
         entries = self.__reverse_index_cache.get(source)
         if entries is None:
-            entries = self.__build_reverse_index(source)
-            self.__reverse_index_cache[source] = entries
+            entries, complete = self.__build_reverse_index(source)
+            if complete:
+                self.__reverse_index_cache[source] = entries
 
         dbt_node = self.__get_dbt_node(source)
         source_schema = dbt_node.get('schema')
