@@ -12,3 +12,5 @@ src/dbt_column_lineage/__pycache__/*
 dbt_project.yml
 target/*
 venv/*
+.venv/
+.DS_Store

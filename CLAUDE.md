@@ -1,0 +1,85 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+`dbt-column-lineage` is a web tool that visualizes **column-level lineage** of dbt models. It parses dbt's `manifest.json` and `catalog.json` (plus each model's `compiled_code`) with [sqlglot](https://github.com/tobymao/sqlglot) to build a graph of how columns flow through models. It is published to PyPI and ships the built frontend as static assets inside the Python package.
+
+- **Backend**: FastAPI (`src/dbt_column_lineage/`), served by uvicorn, exposed via a Typer CLI.
+- **Frontend**: Next.js 14 (App Router) + React Flow, statically exported (`output: 'export'`).
+- **Optional Looker integration**: maps dbt tables/columns to Looker dashboards that consume them.
+
+## Development
+
+Backend and frontend run as separate dev servers.
+
+```bash
+# Backend (port 5000) — from repo root, with venv activated
+pip install -r requirements.txt
+uvicorn --app-dir src dbt_column_lineage.main:app --port=5000 --reload
+
+# Frontend (port 3000) — from frontend/
+npm install
+npm run dev          # dev server
+npm run build        # static export to frontend/out/
+npm run lint         # eslint (next lint)
+```
+
+The frontend reaches the backend via `process.env.NEXT_PUBLIC_API_HOSTNAME` (empty by default → same origin). In dev, set it to `http://localhost:5000`. All API calls hit `${hostname}/api/v1/...`.
+
+### Required environment
+
+- `SQLGLOT_DIALECT` — sqlglot dialect for parsing compiled SQL (default `snowflake`). Must match the dbt warehouse.
+- A dbt project with `target/manifest.json` and `target/catalog.json` (run `dbt docs generate`). The backend locates it via `DBT_PROJECT_DIR`, else auto-detects (`dbt_project.yml` in cwd / common locations — see `utils.find_dbt_project`).
+
+Other env flags (see `constants.py`): `USE_OAUTH`, `DEBUG_MODE`, `NEXT_PUBLIC_USE_LOOKER`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
+
+> ⚠️ `.envrc` is gitignored but currently contains **real secrets** (Google OAuth + Looker SDK credentials). Do not commit it or echo its contents into other files; treat those values as compromised if exposed.
+
+### CLI
+
+The `dbt-column-lineage` entrypoint (`main.cli`, Typer) has commands: `run` (launch server), `run-params` (inspect `git diff` of model files, print a pre-filled lineage URL, then launch — this is the primary user-facing flow), and `version`.
+
+### Tests
+
+`pyproject.toml` declares a `dev` extra (`pytest`, `black`, `isort`), but `test/*.py` is gitignored and the files there are ad-hoc scripts, not a pytest suite. There is no CI test gate. Run `pytest` from the repo root if adding real tests.
+
+## Architecture
+
+### Lineage engine — `src/dbt_column_lineage/lineage.py`
+
+`DbtSqlglot` is the core. Key things to know:
+
+- **Singleton with per-request reset.** `__new__` caches one instance; `__init__` reloads `manifest.json`/`catalog.json` only once (guarded by `_initialized`) but resets `nodes`, `edges`, `target_dashboard_ids`, and `request_depth` on **every** instantiation. So `DbtSqlglot(logger, request_depth=...)` is created fresh per API call (cheap) while the parsed dbt files stay cached in memory.
+- Two graph modes, both accumulating into `self.nodes` / `self.edges`, returned by `ret_edges_nodes()`:
+  - **Table lineage** (`table_lineage` → `__table_dependencies_recursive`): walks `manifest` `parent_map`/`child_map`.
+  - **Column lineage** (`column_lineage` → `__column_lineage_recursive` / `__reverse_column_lineage`): uses `sqlglot.lineage` over each model's `compiled_code`, building a sqlglot `Schema` from `depends_on` tables.
+- **CTE view** (`cte_dependency` → `__cte_dependency_impl`): parses a single model's compiled SQL into its CTE graph for the `/cte` page.
+- `reverse` flag flips direction (downstream vs upstream); `depth` limits recursion (`-1` = unlimited).
+- Methods prefixed `__` are internal traversal/lookup helpers. Column matching is **case-insensitive and upper-cased internally** — be careful when comparing column names.
+
+### API — `src/dbt_column_lineage/main.py`
+
+FastAPI app. All data endpoints are under `BASE_ROUTE = /api/v1`: `schemas`, `sources`, `columns`, `lineage`, `dashboard_lineage`, `cte`, `dashboards`. Each instantiates a fresh `DbtSqlglot`. The built frontend is mounted as static files (`frontend_out/`), with `/`, `/cl`, `/cte`, `/login` serving exported HTML pages and 404 falling back to `404.html`.
+
+Optional **Google OAuth** (when `USE_OAUTH=true`): `/login` → `/oauth` (PKCE) → `/callback`, token stored in the session; `get_current_user` dependency guards the API.
+
+### Looker integration
+
+- **Offline analysis**: `tools/looker_analyzer.py` (`LookerDashboardAnalyzer`) calls the Looker SDK, extracts SQL from each dashboard element, parses table/column usage with sqlglot, and writes `target/looker_analysis.json`. Run via `just analyze-looker` (needs `LOOKERSDK_*` env vars).
+- **Runtime**: `looker.py` (`Looker`) only reads that JSON file (no live SDK calls) to answer `/dashboards` and to graft dashboard nodes onto lineage when `NEXT_PUBLIC_USE_LOOKER=true`.
+
+### Frontend — `frontend/src/`
+
+Next.js App Router. Two main pages: `/cl` (column/table lineage graph) and `/cte` (CTE breakdown of one model), rendered by `components/pages/Cl.tsx` and `Cte.tsx`. Graphs use **React Flow** with **dagre** auto-layout. Global UI state is in `store/zustand.ts` (`useStore`) — `sourceMode` toggles `'dbt'` vs `'looker'`, `showColumn` toggles table- vs column-level. Components follow loose atomic structure (`ui/`, `molecules/`, `organisms/`, `pages/`).
+
+## Build & release
+
+`justfile` holds deploy/release recipes:
+
+- `just pypi <version>` — builds the frontend, tags `v<version>`, builds the sdist/wheel (frontend `out/` is packaged as `frontend_out`), and `twine upload`s to PyPI. Version is derived from git tags via `setuptools_scm` (written to `_version.py`).
+- `just deploy-aws` — builds the multi-stage `Dockerfile` (node build → python deps → slim runtime) and pushes to ECR.
+- `just looker` — runs the Looker analysis and uploads the result to S3.
+
+The packaged app serves the prebuilt frontend, so the published wheel needs no Node at runtime — but `just pypi` must rebuild `frontend/out` first or stale assets ship.
