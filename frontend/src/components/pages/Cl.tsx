@@ -22,6 +22,7 @@ import 'reactflow/dist/style.css'
 import { Sidebar } from '@/components/organisms/Sidebar'
 import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
+import { Loader } from 'lucide-react'
 import ToggleButtons from '@/components/ui/ToggleButtons'
 import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
 import { DashboardNode, DashboardNodeProps } from '@/components/molecules/DashboardNode'
@@ -43,6 +44,7 @@ export const Cl = () => {
   const [nodesPositioned, setNodesPositioned] = useState(true)
 
   const setMessage = useStoreZustand((state) => state.setMessage)
+  const loading = useStoreZustand((state) => state.loading)
   const sidebarActive = useStoreZustand((state) => state.sidebarActive)
   const options = useStoreZustand((state) => state.options)
   const setOptions = useStoreZustand((state) => state.setOptions)
@@ -143,7 +145,16 @@ export const Cl = () => {
       <Header handleFetchData={handleFetchData} />
       <div className="flex flex-wrap">
         <ReactFlowProvider>
-          <div className={sidebarActive ? "w-5/6" : "w-[calc(100%-20px)]"} style={{ height: windowHeight - 55 }}>
+          <div className={`relative ${sidebarActive ? "w-5/6" : "w-[calc(100%-20px)]"}`} style={{ height: windowHeight - 55 }}>
+            {loading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
+                <div className="flex flex-col items-center rounded-lg bg-white px-6 py-4 shadow-lg border border-gray-200">
+                  <Loader className="animate-spin text-blue-600" size={28} />
+                  <span className="mt-2 text-sm font-medium text-gray-700">読み込み中…</span>
+                  <span className="mt-1 text-xs text-gray-500">モデルによっては初回の取得に時間がかかります</span>
+                </div>
+              </div>
+            )}
             <ReactFlow
               minZoom={0.2}
               nodes={nodes}
