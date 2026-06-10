@@ -33,9 +33,12 @@ The frontend reaches the backend via `process.env.NEXT_PUBLIC_API_HOSTNAME` (emp
 - `SQLGLOT_DIALECT` — sqlglot dialect for parsing compiled SQL (default `snowflake`). Must match the dbt warehouse.
 - A dbt project with `target/manifest.json` and `target/catalog.json` (run `dbt docs generate`). The backend locates it via `DBT_PROJECT_DIR`, else auto-detects (`dbt_project.yml` in cwd / common locations — see `utils.find_dbt_project`).
 
-Other env flags (see `constants.py`): `USE_OAUTH`, `DEBUG_MODE`, `NEXT_PUBLIC_USE_LOOKER`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `DBT_DOCS_BASE_URL`.
+Other env flags (see `constants.py`): `USE_OAUTH`, `DEBUG_MODE`, `NEXT_PUBLIC_USE_LOOKER`, `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `DBT_DOCS_BASE_URL`, `SESSION_SECRET`, `MAX_LINEAGE_DEPTH`.
 
 - `DBT_DOCS_BASE_URL` — base URL of a dbt-docs site (e.g. `https://docs.example.com/dbt/latest`). When set, each table node's menu gains an **"Open in dbt docs"** item linking to `{base}/#!/{resource_type}/{unique_id}`. The full URL is built **server-side** in `lineage.py` (`__dbt_docs_url`, read from the manifest node — not reconstructed) and attached as `node.data.docsUrl`, so this is a true **runtime** env var (unlike `NEXT_PUBLIC_*`, which bake into the static frontend at build time). Unset → no `docsUrl` → the menu item is hidden.
+
+- `SESSION_SECRET` — fixed signing key for the session cookie. Required when running more than one process (`uvicorn --workers`, or App Runner scaling out to >1 instance) **and** `USE_OAUTH=true`, otherwise each process generates a random key and signed-cookie sessions break across processes (login fails / API 401s). Unset → per-process random key (single-process default). The Docker image runs `uvicorn --workers 2`, so set this in the deploy env when OAuth is on.
+- `MAX_LINEAGE_DEPTH` — server-side cap on lineage recursion depth. `-1` (default) = unlimited (unchanged behavior); set `>=0` to clamp unlimited/over-cap `depth` query params, bounding the cost of a single runaway request. **Treat a finite value as a required companion of `uvicorn --workers N`**: each worker is a separate process holding its own parsed manifest + its own result graph, so `N` concurrent deep (`depth=-1`) queries multiply peak memory (≈`N`× a single query's footprint) and can approach the instance memory ceiling — *worse* than single-worker if left unbounded. The shipped image runs `--workers 2`, so set a finite cap (or first verify 2-worker peak-memory headroom).
 
 > ⚠️ `.envrc` is gitignored but currently contains **real secrets** (Google OAuth + Looker SDK credentials). Do not commit it or echo its contents into other files; treat those values as compromised if exposed.
 
