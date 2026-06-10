@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `dbt-column-lineage` is a web tool that visualizes **column-level lineage** of dbt models. It parses dbt's `manifest.json` and `catalog.json` (plus each model's `compiled_code`) with [sqlglot](https://github.com/tobymao/sqlglot) to build a graph of how columns flow through models. It is published to PyPI and ships the built frontend as static assets inside the Python package.
 
 - **Backend**: FastAPI (`src/dbt_column_lineage/`), served by uvicorn, exposed via a Typer CLI.
-- **Frontend**: Next.js 14 (App Router) + React Flow, statically exported (`output: 'export'`).
+- **Frontend**: Next.js 16 (App Router) + React 19 + `@xyflow/react` (React Flow v12), statically exported (`output: 'export'`).
 - **Optional Looker integration**: maps dbt tables/columns to Looker dashboards that consume them.
 
 ## Development
@@ -23,7 +23,7 @@ uvicorn --app-dir src dbt_column_lineage.main:app --port=5000 --reload
 npm install
 npm run dev          # dev server
 npm run build        # static export to frontend/out/
-npm run lint         # eslint (next lint)
+npm run lint         # eslint (flat config: eslint.config.mjs)
 ```
 
 The frontend reaches the backend via `process.env.NEXT_PUBLIC_API_HOSTNAME` (empty by default → same origin). In dev, set it to `http://localhost:5000`. All API calls hit `${hostname}/api/v1/...`.
@@ -72,7 +72,13 @@ Optional **Google OAuth** (when `USE_OAUTH=true`): `/login` → `/oauth` (PKCE) 
 
 ### Frontend — `frontend/src/`
 
-Next.js App Router. Two main pages: `/cl` (column/table lineage graph) and `/cte` (CTE breakdown of one model), rendered by `components/pages/Cl.tsx` and `Cte.tsx`. Graphs use **React Flow** with **dagre** auto-layout. Global UI state is in `store/zustand.ts` (`useStore`) — `sourceMode` toggles `'dbt'` vs `'looker'`, `showColumn` toggles table- vs column-level. Components follow loose atomic structure (`ui/`, `molecules/`, `organisms/`, `pages/`).
+Next.js App Router. Two main pages: `/cl` (column/table lineage graph) and `/cte` (CTE breakdown of one model), rendered by `components/pages/Cl.tsx` and `Cte.tsx`. Graphs use **`@xyflow/react`** (React Flow v12) with **dagre** auto-layout. Global UI state is in `store/zustand.ts` (`useStore`) — `sourceMode` toggles `'dbt'` vs `'looker'`, `showColumn` toggles table- vs column-level. Components follow loose atomic structure (`ui/`, `molecules/`, `organisms/`, `pages/`).
+
+**Frontend toolchain.** Next 16 / React 19 / TypeScript 5.9 / Tailwind CSS v4 / ESLint 9 — kept roughly in line with what `create-next-app@latest` scaffolds. Notable v4-era specifics:
+- **Tailwind v4 is CSS-first**: there is no `tailwind.config.*`. Config lives in `src/app/global.css` via `@import "tailwindcss"`, an `@theme` block (the one custom token `--color-primary`), and `@plugin "tailwind-scrollbar"`. PostCSS uses `@tailwindcss/postcss` (no `autoprefixer`). A compat `@layer base` pins the default border color back to `gray-200` (v4 changed it to `currentColor`).
+- **ESLint uses flat config** (`eslint.config.mjs`, extends `eslint-config-next/core-web-vitals`); `next lint` was removed in Next 16, so the `lint` script is `eslint .`. Pinned to ESLint **9** — ESLint 10 is incompatible with `eslint-config-next` 16's bundled parser.
+- **React-Compiler-oriented `react-hooks` rules** that ship with `eslint-config-next` 16 (`set-state-in-effect`, `immutability`, `refs`, `preserve-manual-memoization`) are downgraded to `warn` in the flat config; the lint baseline is **0 warnings**. Intentional `set-state-in-effect` / `exhaustive-deps` sites (mount-only inits, submit-only effects, the dagre layout/highlight effects in `Cl`/`Cte`/`Sidebar`/the search Selects) carry targeted `eslint-disable` comments with reasons — do not "fix" those by completing deps, it re-introduces refetch/relayout loops.
+- `@xyflow/react` v12 vs old `reactflow` v11: store state is `nodeLookup` (was `nodeInternals`), measured node size is `node.measured?.{width,height}` (was `node.{width,height}` — used in the dagre layout in `Sidebar.tsx`/`Cte.tsx`), custom node data types use `NodeProps<Node<Data, 'type'>>`, and `node.data` is typed `unknown`.
 
 ## Build & release
 
