@@ -7,6 +7,7 @@ import EventNodeHandle from '@/components/molecules/TableNodeColumnHandle'
 import EventNodeFrame from '@/components/molecules/TableNodeFrame'
 import TableNodeMoreColumns from '@/components/molecules/TableNodeMoreColumns'
 import TableNodeHandle from '@/components/molecules/TableNodeHandle'
+import TableNodeTerminalMarker from '@/components/molecules/TableNodeTerminalMarker'
 
 type TableNodeDataType = {
   name: string
@@ -74,7 +75,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
       docsUrl={data.docsUrl}
       content={
         <>
-          {(firstNodeTable != data.name) && (
+          {(firstNodeTable != data.name) ? (
             <TableNodeHandle
               type="source"
               position={Position.Left}
@@ -84,8 +85,10 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
               onConnect={() => handlePlusClickEventNodeHandle('', 'source')}
               onDelete={handleMinusClickEventNodeHandle}
             />
+          ) : (
+            <TableNodeTerminalMarker position={Position.Left} variant="table" />
           )}
-          {(lastNodeTable != data.name) && (
+          {(lastNodeTable != data.name) ? (
             <TableNodeHandle
               type="target"
               position={Position.Right}
@@ -95,6 +98,8 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
               onConnect={() => handlePlusClickEventNodeHandle('', 'target')}
               onDelete={handleMinusClickEventNodeHandle}
             />
+          ) : (
+            <TableNodeTerminalMarker position={Position.Right} variant="table" />
           )}
         </>
       }
@@ -150,7 +155,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
                 >
                   {column}
                 </p>
-                {( !data.last && !firstNodeColumns.includes(column)) && (
+                {( !data.last && !firstNodeColumns.includes(column)) ? (
                   <EventNodeHandle
                     type="source"
                     position={options.rankdir === 'LR' ? Position.Right : Position.Left}
@@ -160,8 +165,10 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
                     onDelete={() => handleMinusClickEventNodeHandle(column)}
                     onConnect={() => handlePlusClickEventNodeHandle(column, 'source')}
                   />
+                ) : (
+                  <TableNodeTerminalMarker position={options.rankdir === 'LR' ? Position.Right : Position.Left} />
                 )}
-                {( !data.first && !lastNodeColumns.includes(column)) && (
+                {( !data.first && !lastNodeColumns.includes(column)) ? (
                   <EventNodeHandle
                     type="target"
                     position={options.rankdir === 'LR' ? Position.Left : Position.Right}
@@ -171,6 +178,8 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
                     onDelete={() => handleMinusClickEventNodeHandle(column)}
                     onConnect={() => handlePlusClickEventNodeHandle(column, 'target')}
                   />
+                ) : (
+                  <TableNodeTerminalMarker position={options.rankdir === 'LR' ? Position.Left : Position.Right} />
                 )}
               </div>
             ))}

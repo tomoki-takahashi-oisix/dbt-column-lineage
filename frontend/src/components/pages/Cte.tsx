@@ -325,7 +325,7 @@ export const Cte = () => {
       }
     } catch (e) {
       console.error('Failed to fetch CTE:', e)
-      setMessage('通信に失敗しました', 'error')
+      setMessage('Failed to fetch data', 'error')
       setTimeout(() => setMessage(null, null), 3000)
       return false
     }
