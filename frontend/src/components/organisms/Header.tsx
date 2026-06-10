@@ -58,8 +58,8 @@ export const Header: React.FC<HeaderProps> = ({ handleFetchData }) => {
           role="alert"
         >
           {getMessageIcon(messageType)}
-          <div className="sm:inline text-xs max-w-xl">
-            <Markdown className="markdown" remarkPlugins={[remarkGfm]}>{message}</Markdown>
+          <div className="markdown sm:inline text-xs max-w-xl">
+            <Markdown remarkPlugins={[remarkGfm]}>{message}</Markdown>
           </div>
         </div>
       )}
