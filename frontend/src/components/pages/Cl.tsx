@@ -3,21 +3,24 @@ import { useSearchParams } from 'next/navigation'
 import { TableNode, TableNodeProps } from '@/components/molecules/TableNode'
 import { useGetWindowSize } from '@/hooks/useGetWindowSize'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import ReactFlow, {
+import {
+  ReactFlow,
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
   Background,
   Connection,
   Controls,
+  Edge,
   EdgeChange,
+  Node,
   NodeChange,
   Panel,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 
 import { Sidebar } from '@/components/organisms/Sidebar'
 import { Header } from '@/components/organisms/Header'
@@ -38,8 +41,8 @@ interface QueryParams {
 export const Cl = () => {
   const { height: windowHeight, width: windowWidth } = useGetWindowSize()
 
-  const [nodes, setNodes] = useNodesState([])
-  const [edges, setEdges] = useEdgesState([])
+  const [nodes, setNodes] = useNodesState<Node>([])
+  const [edges, setEdges] = useEdgesState<Edge>([])
   const [viewIsFit, setViewIsFit] = useState(false)
   const [nodesPositioned, setNodesPositioned] = useState(true)
 
