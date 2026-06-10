@@ -22,10 +22,12 @@ const ToggleButtons = () => {
     { id: 'column', icon: Columns3, label: 'Column' },
   ]
 
-  // showColumnが変更されたときにactiveButtonを変更する
+  // showColumnが変更されたときにactiveButtonを変更する(showColumn から導出する同期 setState)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setActiveButton(showColumn ? 'column' : 'table')
   }, [showColumn])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ボタンが押されたときの処理
   const handleToggleButton = useCallback((buttonId: string) => {
@@ -78,7 +80,7 @@ const ToggleButtons = () => {
 
     }
     setClearNodePosition(true)
-  }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges])
+  }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges, setColumnModeEdges, setRightMaxDepth])
 
   const copyToClipboard = useCallback(async() => {
     const flowElement = document.querySelector('.react-flow__viewport') as HTMLElement
@@ -100,7 +102,7 @@ const ToggleButtons = () => {
         setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
       }
     }
-  }, [])
+  }, [fitView, setMessage])
 
   return (
     <div className="flex flex-col space-y-4">

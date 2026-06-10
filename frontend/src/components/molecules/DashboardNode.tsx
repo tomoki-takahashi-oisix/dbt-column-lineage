@@ -32,7 +32,7 @@ export const DashboardNode: React.FC<DashboardNodeProps> = ({ data, id, selected
   const handleClickColumnName = useCallback((e: React.MouseEvent, exploreUrl: string) => {
     e.stopPropagation()
     window.open(exploreUrl, '_blank')
-  }, [data])
+  }, [])
 
   return (
     <DashboardNodeFrame

@@ -25,13 +25,16 @@ export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
     setSourceMode(mode)
   }
 
+  // マウント時のみ: 初期URLに dashboardId があれば looker モードで開始する。
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (searchParams.get('dashboardId')) setSourceMode('looker')
   }, [])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
     if (!isCl) setSourceMode('dbt')
-  }, [isCl])
+  }, [isCl, setSourceMode])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

@@ -50,6 +50,8 @@ export const Cl = () => {
   const loading = useStoreZustand((state) => state.loading)
   // ロードが5秒以上続くときだけオーバーレイを表示(短時間のロードでのチラつきを防ぐ)
   const [showLoadingOverlay, setShowLoadingOverlay] = useState(false)
+  // loading の状態に応じてオーバーレイ表示を制御する(意図的な同期 setState)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!loading) {
       setShowLoadingOverlay(false)
@@ -58,6 +60,7 @@ export const Cl = () => {
     const timer = setTimeout(() => setShowLoadingOverlay(true), 5000)
     return () => clearTimeout(timer)
   }, [loading])
+  /* eslint-enable react-hooks/set-state-in-effect */
   const sidebarActive = useStoreZustand((state) => state.sidebarActive)
   const options = useStoreZustand((state) => state.options)
   const setOptions = useStoreZustand((state) => state.setOptions)
@@ -114,7 +117,7 @@ export const Cl = () => {
 
     setNodesPositioned(false)
     return true
-  }, [searchParams])
+  }, [setNodes, setEdges, setShowColumn, setMessage])
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
@@ -143,15 +146,18 @@ export const Cl = () => {
       setClearNodePosition(false)
       setTimeout(()=>setNodesPositioned(false), 100)
     }
-  }, [clearNodePosition])
+  }, [clearNodePosition, setClearNodePosition])
 
+  // サイドバー開閉時にノードを再レイアウトさせる(意図的な同期 setState)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setNodesPositioned(false)
   }, [sidebarActive])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     setOptions({ rankdir: 'RL' })
-  }, [])
+  }, [setOptions])
 
   return (
     <div>

@@ -40,11 +40,14 @@ export const Header: React.FC<HeaderProps> = ({ handleFetchData }) => {
     }
   }
 
+  // マウント時に現在の pathname で lineageMode を初期化する(以降は select の onChange で遷移)。
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     if (pathname !== lineageMode) {
       setLineageMode(pathname)
     }
   }, [])
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   return (
     <div>

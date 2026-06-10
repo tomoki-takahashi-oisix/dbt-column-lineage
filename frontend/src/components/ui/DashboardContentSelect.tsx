@@ -100,9 +100,11 @@ export const DashboardContentSelect: React.FC<HeaderProps> = ({handleFetchData})
       })
       router.push(`${pathname}?${query}`)
     }
-  }, [selectedDashboard])
+  }, [selectedDashboard, searchParams, pathname, router, handleFetchData, handleFetchDashboards, setLoading, setColumnModeEdges])
 
-  // 初回読み込み時の処理
+  // 初回読み込み時の処理。マウント時に1回だけ実行する(URLパラメータからの復元 or 一覧取得)。
+  // submit/handleFetchDashboards を deps に入れると毎レンダー再取得・再送信になるため意図的に空配列にしている。
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     if (searchParams.size) {
       submit(true)
@@ -110,11 +112,12 @@ export const DashboardContentSelect: React.FC<HeaderProps> = ({handleFetchData})
       handleFetchDashboards()
     }
   }, [])
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   // submitボタンのdisabled制御
   useEffect(() => {
     setIsSubmitDisabled(!selectedDashboard)
-  }, [selectedDashboard])
+  }, [selectedDashboard, setIsSubmitDisabled])
 
   // 選択されたダッシュボードの表示名を更新
   useEffect(() => {
@@ -123,9 +126,11 @@ export const DashboardContentSelect: React.FC<HeaderProps> = ({handleFetchData})
     } else {
       setHeaderSearchDisplayMessage('Select dashboard')
     }
-  }, [selectedDashboard, dashboards])
+  }, [selectedDashboard, dashboards, setHeaderSearchDisplayMessage])
 
-  // submitボタン押下時の処理
+  // submitボタン押下時の処理。submitClicked が true になった時だけ送信する。
+  // submit を deps に入れると submit の再生成で二重送信になりうるため意図的に submitClicked のみ。
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     if (submitClicked) {
       console.log(submitClicked)
@@ -133,6 +138,7 @@ export const DashboardContentSelect: React.FC<HeaderProps> = ({handleFetchData})
       resetSubmitClicked()
     }
   }, [submitClicked])
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   return (
     <div>

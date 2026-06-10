@@ -80,7 +80,7 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
     const query = new URLSearchParams({schema, source, column})
 
     router.push(`/cte?${query.toString()}`)
-  }, [nodeInternals])
+  }, [router])
 
   useEffect(() => {
     try {
@@ -111,6 +111,9 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
     } catch (error) {
       console.log('error', error)
     }
+    // ノード寸法の測定後(flattenedNodes 更新時)と nodesPositioned 変化時にのみ再レイアウトする。
+    // edges/options/各 setter を deps に入れるとレイアウト→setNodes→再実行のループを招くため意図的に限定。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodesPositioned, flattenedNodes])
 
   return (
