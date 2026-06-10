@@ -142,7 +142,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
                 }}
               >
                 <p
-                  className="cursor-pointer hover:underline flex-grow"
+                  className="cursor-pointer hover:underline grow"
                   onClick={(e) => handleClickColumnName(e, column)}
                 >
                   {column}

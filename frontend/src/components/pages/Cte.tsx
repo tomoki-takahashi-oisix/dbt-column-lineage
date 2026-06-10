@@ -358,7 +358,7 @@ export const Cte = () => {
           <h4 className="h-[32px] px-1 text-2xl font-bold flex items-center">
             <span className="select-text truncate" title={tableName}>{tableName}</span>
             <span
-              className={`ms-2 text-sm font-semibold text-gray-500 dark:text-gray-400 select-text ${getColorClassForMaterialized(materialized)} bg-opacity-50 rounded px-2 py-1`}>
+              className={`ms-2 text-sm font-semibold text-gray-500 dark:text-gray-400 select-text ${getColorClassForMaterialized(materialized)} bg-opacity-50 rounded-sm px-2 py-1`}>
               {materialized}
             </span>
           </h4>
@@ -374,8 +374,8 @@ export const Cte = () => {
                 key={tab}
                 className={`${
                   mode === tab
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:bg-white/[0.12] hover:text-gray-900'
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-gray-600 hover:bg-white/12 hover:text-gray-900'
                 } rounded-md px-2 text-xs font-medium transition-all duration-200 flex items-center justify-center h-7`}
                 onClick={() => tab === 'lineage' ? handleClickLineageMode() : setMode(tab)}
               >

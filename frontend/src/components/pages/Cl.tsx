@@ -187,7 +187,7 @@ export const Cl = () => {
                         type="checkbox"
                         checked={leftMaxDepth}
                         onChange={() => setLeftMaxDepth(!leftMaxDepth)}
-                        className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                        className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
                       />
                       <label htmlFor="leftMaxDepth" className="ml-2 text-sm text-gray-700">
                         Max depth for left (+) button
@@ -200,7 +200,7 @@ export const Cl = () => {
                           type="checkbox"
                           checked={rightMaxDepth}
                           onChange={() => setRightMaxDepth(!rightMaxDepth)}
-                          className="form-checkbox h-4 w-4 text-blue-600 rounded"
+                          className="form-checkbox h-4 w-4 text-blue-600 rounded-sm"
                         />
                         <label htmlFor="rightMaxDepth" className="ml-2 text-sm text-gray-700">
                           Max depth for right (+) button
@@ -211,12 +211,12 @@ export const Cl = () => {
                 </div>
               </Panel>
               <Panel position="top-right">
-                { nodes.length > 0 && <div className="p-1 rounded">
+                { nodes.length > 0 && <div className="p-1 rounded-sm">
                   <div className="flex items-center space-x-2">
                     {materializedTypes.map((type) => (
                       <div key={type} className="flex items-center">
                         <div
-                          className={`w-4 h-4 mr-1 rounded-sm ${getColorClassForMaterialized(type)}`}
+                          className={`w-4 h-4 mr-1 rounded-xs ${getColorClassForMaterialized(type)}`}
                         ></div>
                         <span className="text-[10px] whitespace-nowrap text-gray-700">{type}</span>
                       </div>

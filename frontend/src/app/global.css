@@ -1,13 +1,35 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@plugin 'tailwind-scrollbar';
+
+@theme {
+  --color-primary: var(--primary);
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
 
 :root {
   --primary: 0,123,245;
 }
 
 .markdown {
-  @apply text-gray-900 leading-normal break-words;
+  @apply text-gray-900 leading-normal wrap-break-word;
 }
 
 .markdown > * + * {
@@ -63,11 +85,11 @@
 }
 
 .markdown code {
-  @apply font-mono text-sm inline bg-gray-200 rounded px-1 py-5;
+  @apply font-mono text-sm inline bg-gray-200 rounded-sm px-1 py-5;
 }
 
 .markdown pre {
-  @apply bg-gray-100 rounded p-4;
+  @apply bg-gray-100 rounded-sm p-4;
 }
 
 .markdown pre code {
@@ -83,7 +105,7 @@
 }
 
 .markdown kbd {
-  @apply text-xs inline-block rounded border px-1 py-5 align-middle font-normal font-mono shadow;
+  @apply text-xs inline-block rounded-sm border px-1 py-5 align-middle font-normal font-mono shadow-sm;
 }
 
 .markdown table {
@@ -100,5 +122,5 @@
 
 /* Override pygments style background color. */
 .markdown .highlight pre {
-  @apply bg-gray-100 !important;
+  @apply bg-gray-100!;
 }

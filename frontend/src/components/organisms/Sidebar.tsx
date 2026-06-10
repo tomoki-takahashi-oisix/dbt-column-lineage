@@ -121,14 +121,14 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
       </div>
       {sidebarActive && <div className="px-2 text-sm">
         <div className="py-1 font-semibold text-base">Zoom & pan transform</div>
-        <div className="transform break-words">
+        <div className="transform wrap-break-word">
           [{transform[0].toFixed(2)}, {transform[1].toFixed(2)}, {transform[2].toFixed(2)}]
         </div>
         <div className="py-1 font-semibold text-base">Nodes</div>
         {flattenedNodes.map((node) => (
           <div key={node.id}>
             <span
-                  className="font-medium break-words">{String(node.data.name)}</span>
+                  className="font-medium wrap-break-word">{String(node.data.name)}</span>
             <div>x: {node.position.x.toFixed(2)}, y: {node.position.y.toFixed(2)}</div>
             {/*<ul className="list-disc px-4">*/}
             {/*  {node.data.columns.map((column: string, index: number) => (*/}
