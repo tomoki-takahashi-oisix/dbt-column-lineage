@@ -48,7 +48,7 @@
   },
   "sources": {},
   "child_map": {
-    "model.test_proj.base_model": ["model.test_proj.child_model", "model.test_proj.plain_model"],
+    "model.test_proj.base_model": ["exposure.test_proj.some_exposure", "model.test_proj.child_model", "model.test_proj.plain_model"],
     "model.test_proj.child_model": [],
     "model.test_proj.plain_model": []
   },
