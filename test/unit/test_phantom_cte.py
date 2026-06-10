@@ -71,3 +71,15 @@ def test_forward_plain_model_traces_to_base_model(dbt):
     names = {n["data"]["name"] for n in dbt.ret_edges_nodes()["nodes"]}
     assert "base_model" in names
     assert "plain_model" in names
+
+
+# --- /cte page must NOT be affected by the phantom filter ------------------
+
+def test_cte_page_still_shows_unpivot_input_cte(dbt):
+    # phantom フィルタは共有関数 __get_sqlglot_lineage に入っているが、/cte ページ
+    # (cte_dependency) は CTE を表示するのが目的。CTE ノードは生パースから作られ、
+    # フィルタ済み labels は __cte_dependency_impl 内の未使用変数にしか流れないため、
+    # UNPIVOT 入力 CTE `src` も /cte 上では従来どおり表示される。
+    res = dbt.cte_dependency("child_model", ["SCORE"])
+    cte_ids = {n["id"] for n in res["nodes"] if n.get("type") == "cte"}
+    assert "src" in cte_ids
