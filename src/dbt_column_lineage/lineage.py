@@ -28,6 +28,9 @@ class DbtSqlglot:
         self.edges = []
         self.target_dashboard_ids = []
         self.request_depth = request_depth
+        # depth 上限(request_depth)で実際に系統を打ち切ったか。未探索の依存が
+        # 残ったまま深さ制限で止まった場合のみ True(自然に末端へ達した場合は False)。
+        self.depth_truncated = False
 
         if self._initialized:
             return
@@ -152,7 +155,7 @@ class DbtSqlglot:
 
 
     def ret_edges_nodes(self) -> dict:
-        return {'edges': self.edges, 'nodes': self.nodes}
+        return {'edges': self.edges, 'nodes': self.nodes, 'truncated': self.depth_truncated}
 
 
     def cte_dependency(self, source: str, columns: []):
@@ -598,6 +601,9 @@ class DbtSqlglot:
         depth = depth + 1
         if self.request_depth != -1 and depth > self.request_depth:
             self.logger.info(f'depth={depth} reached')
+            # 未探索の依存が残っているなら、深さ上限で打ち切った
+            if deps_refs:
+                self.depth_truncated = True
             return
 
         for deps_unique_id in deps_refs:
@@ -679,6 +685,9 @@ class DbtSqlglot:
         next_found = False
         for after_base_column, after_next_sources_columns in after_next_sources_columns_dict.items():
             if self.request_depth != -1 and depth > self.request_depth:
+                # まだ辿るべき上流/下流(labels)があるのに深さ上限で止めた = 打ち切り
+                if after_next_sources_columns.get('labels'):
+                    self.depth_truncated = True
                 continue
             after_next_sources = after_next_sources_columns['labels']
             after_next_columns = after_next_sources_columns['columns']

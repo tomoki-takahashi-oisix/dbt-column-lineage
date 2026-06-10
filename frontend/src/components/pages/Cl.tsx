@@ -25,7 +25,7 @@ import '@xyflow/react/dist/style.css'
 import { Sidebar } from '@/components/organisms/Sidebar'
 import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
-import { Loader } from 'lucide-react'
+import { Loader, AlertTriangle } from 'lucide-react'
 import ToggleButtons from '@/components/ui/ToggleButtons'
 import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
 import { DashboardNode, DashboardNodeProps } from '@/components/molecules/DashboardNode'
@@ -72,12 +72,15 @@ export const Cl = () => {
   const setRightMaxDepth = useStoreZustand((state) => state.setRightMaxDepth)
   const showColumn = useStoreZustand((state) => state.showColumn)
   const setShowColumn = useStoreZustand((state) => state.setShowColumn)
+  const truncated = useStoreZustand((state) => state.truncated)
+  const setTruncated = useStoreZustand((state) => state.setTruncated)
 
   const searchParams = useSearchParams()
 
   const handleFetchData = useCallback(async ({ dashboardId, sources, columns, showColumn, depth }: QueryParams) => {
     setNodes([])
     setEdges([])
+    setTruncated(false)
     // undefined が入っている場合は false に変換
     setShowColumn(Boolean(showColumn))
 
@@ -122,10 +125,11 @@ export const Cl = () => {
     }
     setNodes(data['nodes'])
     setEdges(data['edges'])
+    setTruncated(Boolean(data['truncated']))
 
     setNodesPositioned(false)
     return true
-  }, [setNodes, setEdges, setShowColumn, setMessage])
+  }, [setNodes, setEdges, setShowColumn, setMessage, setTruncated])
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
@@ -191,6 +195,17 @@ export const Cl = () => {
               onConnect={onConnect}
               nodeTypes={nodeTypes}
             >
+              {truncated && (
+                <Panel position="top-center">
+                  <div
+                    className="flex items-center rounded border border-amber-400 bg-amber-100 px-4 py-2 text-xs text-amber-800 shadow-md"
+                    role="alert"
+                  >
+                    <AlertTriangle className="mr-2 h-4 w-4 shrink-0" />
+                    深さ上限に達したため、系統の一部を省略しています（さらに上流/下流があります）。
+                  </div>
+                </Panel>
+              )}
               <Panel position="top-left">
                 <div className="flex flex-col space-y-4">
                   <ToggleButtons />
