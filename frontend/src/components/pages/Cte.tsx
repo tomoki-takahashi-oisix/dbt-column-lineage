@@ -313,11 +313,20 @@ export const Cte = () => {
     const column = columns[source] ? columns[source][0] : ''
     const query = new URLSearchParams({source, column})
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
-    const response = await fetch(`${hostName}/api/v1/cte?${query}`)
-    const data = await response.json()
-    if (response.status != 200) {
-      setMessage(data['detail'], 'error')
-      setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
+    let data: any
+    try {
+      const response = await fetch(`${hostName}/api/v1/cte?${query}`)
+      // 非JSON(502/504やログインHTML等)だと json() が throw するため catch で拾う
+      data = await response.json()
+      if (response.status != 200) {
+        setMessage(data['detail'], 'error')
+        setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
+        return false
+      }
+    } catch (e) {
+      console.error('Failed to fetch CTE:', e)
+      setMessage('通信に失敗しました', 'error')
+      setTimeout(() => setMessage(null, null), 3000)
       return false
     }
     setNodes(data['nodes'])

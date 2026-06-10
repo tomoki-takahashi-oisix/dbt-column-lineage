@@ -7,7 +7,7 @@ import { SchemaSourceColumnSelect } from '@/components/ui/SchemaSourceColumnSele
 import { HeaderProps } from '@/components/organisms/Header'
 
 export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
-  const isLookerEnabled = Boolean(process.env.NEXT_PUBLIC_USE_LOOKER)
+  const isLookerEnabled = process.env.NEXT_PUBLIC_USE_LOOKER?.toLowerCase() === 'true'
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
 

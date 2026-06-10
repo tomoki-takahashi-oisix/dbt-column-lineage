@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useStore as useStoreZustand } from '@/store/zustand'
 
 export const DashboardContentSelect: React.FC<HeaderProps> = ({handleFetchData}) => {
-  const isLookerEnabled = Boolean(process.env.NEXT_PUBLIC_USE_LOOKER)
+  const isLookerEnabled = process.env.NEXT_PUBLIC_USE_LOOKER?.toLowerCase() === 'true'
   const [dashboards, setDashboards] = useState<DashboardOption[]>([])
   const [selectedDashboard, setSelectedDashboard] = useState('')
 

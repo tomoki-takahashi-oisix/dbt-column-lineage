@@ -82,34 +82,42 @@ export const Cl = () => {
     setShowColumn(Boolean(showColumn))
 
     const hostName = process.env.NEXT_PUBLIC_API_HOSTNAME || ''
-    let response
-
-    if (dashboardId) {
-      const query = new URLSearchParams({ dashboard_id: dashboardId, depth: '1' })
-      response = await fetch(`${hostName}/api/v1/dashboard_lineage?${query}`)
-    } else {
-      const query = new URLSearchParams({
-        sources: sources.join(','),
-        columns: JSON.stringify(columns),
-        show_column: showColumn.toString()
-      })
-      // depthの指定がない場合
-      if (Number.isNaN(depth)) {
-        if (showColumn) {
-          query.append('depth', '-1')
-        } else {
-          // テーブルモードの場合は広がり過ぎるのでdepthを1にする
-          query.append('depth', '1')
-        }
+    let data: any
+    try {
+      let response
+      if (dashboardId) {
+        const query = new URLSearchParams({ dashboard_id: dashboardId, depth: '1' })
+        response = await fetch(`${hostName}/api/v1/dashboard_lineage?${query}`)
       } else {
-        query.set('depth', depth.toString())
+        const query = new URLSearchParams({
+          sources: sources.join(','),
+          columns: JSON.stringify(columns),
+          show_column: showColumn.toString()
+        })
+        // depthの指定がない場合
+        if (Number.isNaN(depth)) {
+          if (showColumn) {
+            query.append('depth', '-1')
+          } else {
+            // テーブルモードの場合は広がり過ぎるのでdepthを1にする
+            query.append('depth', '1')
+          }
+        } else {
+          query.set('depth', depth.toString())
+        }
+        response = await fetch(`${hostName}/api/v1/lineage?${query}`)
       }
-      response = await fetch(`${hostName}/api/v1/lineage?${query}`)
-    }
-    const data = await response.json()
-    if (response.status != 200) {
-      setMessage(data['detail'], 'error')
-      setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
+      // 非JSON(502/504やログインHTML等)だと json() が throw する。catch で拾い loading を確実に解除する
+      data = await response.json()
+      if (response.status != 200) {
+        setMessage(data['detail'], 'error')
+        setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
+        return false
+      }
+    } catch (e) {
+      console.error('Failed to fetch lineage:', e)
+      setMessage('通信に失敗しました', 'error')
+      setTimeout(() => setMessage(null, null), 3000)
       return false
     }
     setNodes(data['nodes'])

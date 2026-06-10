@@ -129,7 +129,13 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
       const qSchema = searchParams.get('schema') as string
       const qSources = searchParams.get('sources')?.split(',') || []
       const qActiveSource = searchParams.get('activeSource') as string
-      const qSelectedColumns = JSON.parse(searchParams.get('selectedColumns') as string) || {}
+      // 壊れた共有URL等で selectedColumns が不正な JSON でも落ちないようにガードする
+      let qSelectedColumns: {[source: string]: string[]} = {}
+      try {
+        qSelectedColumns = JSON.parse(searchParams.get('selectedColumns') as string) || {}
+      } catch (e) {
+        console.error('Invalid selectedColumns in URL:', e)
+      }
       const qShowColumnExt = searchParams.get('showColumn')
       const qShowColumn = qShowColumnExt == 'true'
       const qDepth = parseInt(searchParams.get('depth') as string)
