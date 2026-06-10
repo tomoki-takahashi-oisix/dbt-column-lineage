@@ -19,7 +19,7 @@ from requests.auth import HTTPBasicAuth
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from dbt_column_lineage.constants import USE_OAUTH, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_ROUTE
+from dbt_column_lineage.constants import USE_OAUTH, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BASE_ROUTE, SESSION_SECRET, MAX_LINEAGE_DEPTH
 from dbt_column_lineage.lineage import DbtSqlglot
 from dbt_column_lineage.looker import Looker
 from dbt_column_lineage.utils import get_logger, get_redirect_url, get_diff_to_params, startup_dialect_check
@@ -38,8 +38,10 @@ app = FastAPI(lifespan=lifespan)
 # CORS設定
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
 
-# セッション管理のミドルウェア追加
-app.add_middleware(SessionMiddleware, secret_key=os.urandom(32).hex())
+# セッション管理のミドルウェア追加。
+# SESSION_SECRET があれば全プロセスで共有(複数ワーカー/インスタンスでセッション維持)、
+# 無ければ従来通りプロセス毎のランダム鍵。
+app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET or os.urandom(32).hex())
 
 logger = get_logger(app, __name__)
 
@@ -60,6 +62,16 @@ async def get_current_user(request: Request):
             raise HTTPException(status_code=401, detail='Not authenticated')
         return access_token
     return None
+
+
+def _capped_depth(depth: int) -> int:
+    """MAX_LINEAGE_DEPTH(>=0)が設定されていれば、無制限(-1)/上限超の depth をクランプする。
+    未設定(-1)なら depth をそのまま返す(従来の無制限挙動)。"""
+    if MAX_LINEAGE_DEPTH < 0:
+        return depth
+    if depth < 0 or depth > MAX_LINEAGE_DEPTH:
+        return MAX_LINEAGE_DEPTH
+    return depth
 
 
 @app.get('/healthcheck')
@@ -181,7 +193,7 @@ async def find_lineage(
     depth: int = Query(-1, description='depth of lineage', ge=-1),
     current_user: str = Depends(get_current_user)
 ):
-    dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
+    dbt_sqlglot = DbtSqlglot(logger, request_depth=_capped_depth(depth))
     if show_column:
         parsed_columns = json.loads(columns)
         for source in sources.split(','):
@@ -199,7 +211,7 @@ async def find_dashboard_lineage(
     depth: int = Query(-1, description='depth of lineage', ge=-1),
     current_user: str = Depends(get_current_user)
 ):
-    dbt_sqlglot = DbtSqlglot(logger, request_depth=depth)
+    dbt_sqlglot = DbtSqlglot(logger, request_depth=_capped_depth(depth))
     dbt_sqlglot.dashboard_lineage(dashboard_id)
     res = dbt_sqlglot.ret_edges_nodes()
     return JSONResponse(content=res)
