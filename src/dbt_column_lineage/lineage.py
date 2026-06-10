@@ -320,7 +320,74 @@ class DbtSqlglot:
                 break
         return element
 
+    def __extract_lineage_node(self, lin, source: str, need_meta=False) -> dict:
+        """1カラム分の sqlglot lineage Node を走査して {labels, columns(, meta)} を作る。
+        per-column 経路(__get_sqlglot_lineage)とバッチ経路(__build_reverse_index の
+        lineage(None))の双方から呼ぶ共有ヘルパー。両経路で抽出ロジックを一致させるため、
+        ここを単一の実装に集約している。"""
+        labels = set()
+        replace_columns = set()
+        meta = []
+        for node in lin.walk():
+            if isinstance(node.expression, exp.Table):
+                label = f'{node.expression.this}'
+                # 配下のデータがなければ最後とみなす
+                self.logger.debug(f'label: {label}')
+                if len(node.downstream) == 0:
+                    labels.add(label)
+            if node.name != '*' and not isinstance(node.expression, exp.Table):
+                cte = node.expression.sql(dialect=self.dialect)
+                self.logger.debug(cte)
+                try:
+                    cte_parsed = parse_one(cte, dialect=self.dialect)
+                    cl = cte_parsed.find_all(exp.Column)
+                except SqlglotError:
+                    self.logger.error(f'cte parse error. source={source}, cte={cte}')
+                    cl = []
+                for c in cl:
+                    self.logger.debug(f'alias_or_name={c.alias_or_name}')
+                    replace_columns.add(c.alias_or_name)
+            # CTEリネージ用の追加情報
+            if need_meta and not isinstance(node.expression, exp.Table):
+                if node.reference_node_name == '':
+                    # 最初のselect * from finalは無視
+                    continue
+
+                node_downstream_alias_names = []
+                node_downstream_table_sources = []
+                for d in node.downstream:
+                    if isinstance(d.expression, exp.Table):
+                        node_downstream_table_sources.append({'schema': d.expression.db.lower(),'table': d.expression.name.lower()})
+                        parsed_column = parse_one(d.name, dialect=self.dialect)
+                        node_downstream_alias_names.append(parsed_column.alias_or_name.lower())
+                    else:
+                        node_downstream_alias_names.append(d.expression.alias_or_name.lower())
+
+                # カラム名が一致したら次のカラムをリセット
+                column_name = node.expression.alias_or_name.lower()
+                if len(node_downstream_alias_names) > 0 and column_name == node_downstream_alias_names[0]:
+                    node_downstream_alias_names = []
+                mt = {
+                    'column': node.expression.alias_or_name.lower(),
+                    'nextColumns': node_downstream_alias_names,
+                    'nextSources': node_downstream_table_sources,
+                    'reference': node.reference_node_name.lower()
+                }
+                meta.append(mt)
+
+        item = {'labels': list(labels), 'columns': list(replace_columns)}
+        if need_meta:
+            item['meta'] = meta
+        return item
+
     def __get_sqlglot_lineage(self, source: str, parsed_sql: Expression, columns: [], sqlglot_db_schema: t.Dict | Schema, need_meta=False, sql_scope:t.Optional[Scope]=None) -> dict:
+        # 注意: 走査ロジックは __extract_lineage_node とほぼ同じだが、ここでは意図的に
+        # インライン実装を保持している。下の `parsed_sql = parse_one(cte, ...)` の再代入は
+        # ループ内で parsed_sql 引数を上書きし、scope を渡さない forward リネージの
+        # 複数カラム処理の挙動に影響する(=load-bearing)。共有ヘルパーに置換すると
+        # forward の結果が変わるため、forward/CTE 経路はこの実装のまま維持する。
+        # バッチ(reverse)経路は scope を渡すため上書きは無効で、__extract_lineage_node と
+        # 結果が一致する(equality battery で担保)。
         ret = {}
         for column in columns:
             column = column.upper()
@@ -613,16 +680,31 @@ class DbtSqlglot:
             # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
             ref_columns = ref_dbt_node.get('columns', self.__get_dbt_catalog(ref).get('columns', {}))
 
-            for ref_column in ref_columns:
-                reference = self.__find_column_references(sql_scope, source, ref_column)
-                if not reference:
-                    self.logger.debug(f'table={ref}, reference={reference}, ref_column={ref_column} not found')
-                    continue
+            # バッチ: この子モデルの全出力カラムのリネージを 1 回で取得する。
+            # sqlglot 30 の lineage(column=None) は内部の共有キャッシュでカラム横断の
+            # 重複walk(共通CTEの再走査)を省くため、出力カラムごとに lineage() を呼ぶ
+            # 従来方式より速い。万一バッチが失敗したら従来の per-column に切り替え、
+            # 結果の同一性を保つ。
+            batch_nodes = None
+            try:
+                batch_dict = lineage(None, parsed_sql, dialect=self.dialect, schema=sqlglot_db_schema, scope=sql_scope)
+                batch_nodes = {k.upper(): v for k, v in batch_dict.items()}
+            except SqlglotError:
+                self.logger.error(f'batch lineage error. source={source}, ref={ref}')
+                batch_nodes = None
 
+            # バッチで全カラムを計算済みなので、従来の __find_column_references プレフィルタ
+            # (lineage 呼び出しを間引く役目)は不要。`source in labels` での絞り込みだけで
+            # 従来と同一結果になることを検証済み(equality battery)。
+            for ref_column in ref_columns:
                 self.logger.info(f'table={ref}, column={ref_column}')
                 ref_column_name = ref_column.upper()
-                items = self.__get_sqlglot_lineage(source, parsed_sql, [ref_column_name], sqlglot_db_schema, sql_scope=sql_scope)
-                item_labels_columns = items.get(ref_column_name, {})
+                if batch_nodes is not None:
+                    node = batch_nodes.get(ref_column_name)
+                    item_labels_columns = self.__extract_lineage_node(node, source) if node is not None else {}
+                else:
+                    items = self.__get_sqlglot_lineage(source, parsed_sql, [ref_column_name], sqlglot_db_schema, sql_scope=sql_scope)
+                    item_labels_columns = items.get(ref_column_name, {})
                 item_labels = item_labels_columns.get('labels', [])
                 item_columns = item_labels_columns.get('columns', [])
                 if source.upper() in item_labels:
@@ -747,32 +829,6 @@ class DbtSqlglot:
                     self.edges.append({'id': edge_id, 'source': dep,'target': node, 'markerStart': {'type': 'arrowclosed', 'width': 16, 'height': 16}})
 
         return lineage_meta
-
-    def __find_column_references(self, sql_scope: Scope, target_table: str, target_column: str) -> t.List[str]:
-        references = set()
-
-        # クエリ内のすべてのSELECTを取得
-        selects = sql_scope.expression.find_all(exp.Select)
-
-        for select in selects:
-            # このSELECTのFROM句とJOINで参照されているテーブルをチェック
-            tables = select.find_all(exp.Table)
-            if not any(t.name.lower() == target_table.lower() for t in tables):
-                continue
-
-            # SELECT句の内容をチェック
-            for expr in select.expressions:
-                # SELECT * の場合
-                if isinstance(expr, exp.Star):
-                    references.add('*')
-                    continue
-
-                # target_columnが含まれているか確認
-                columns = expr.find_all(exp.Column)
-                if any(col.name.lower() == target_column.lower() for col in columns):
-                    references.add(expr.alias_or_name)
-
-        return list(references)
 
     def __build_scope(self, expression: Expression, schema: Schema) -> Scope:
         expression = qualify.qualify(
