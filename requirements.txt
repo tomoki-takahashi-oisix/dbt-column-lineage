@@ -1,4 +1,4 @@
-sqlglot==25.31.2
+sqlglot==30.10.0
 fastapi==0.115.2
 uvicorn==0.32.0
 requests==2.32.3

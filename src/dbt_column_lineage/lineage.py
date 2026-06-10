@@ -2,7 +2,8 @@ import json
 import time
 import typing as t
 
-from sqlglot import exp, parse_one, MappingSchema, Expression, Schema
+from sqlglot import exp, parse_one, MappingSchema, Schema
+from sqlglot.expressions import Expression
 from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 from sqlglot.optimizer import build_scope, Scope, qualify
