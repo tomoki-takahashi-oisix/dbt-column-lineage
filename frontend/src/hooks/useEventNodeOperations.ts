@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Node, Edge, useReactFlow, useUpdateNodeInternals, getConnectedEdges } from 'reactflow'
+import { Node, Edge, useReactFlow, useUpdateNodeInternals, getConnectedEdges } from '@xyflow/react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 
 export const useEventNodeOperations = (id: string) => {
@@ -31,7 +31,10 @@ export const useEventNodeOperations = (id: string) => {
           data: {
             ...existingNode.data,
             ...newNode.data,
-            columns: Array.from(new Set([...existingNode.data.columns, ...newNode.data.columns]))
+            columns: Array.from(new Set([
+              ...(existingNode.data.columns as string[]),
+              ...(newNode.data.columns as string[]),
+            ]))
           }
         })
       } else {
@@ -223,7 +226,7 @@ export const useEventNodeOperations = (id: string) => {
         }
         const columnsToRemove = columnMappings.get(node.id) || new Set<string>()
         //  削除すべきカラムを除外したカラムリストを取得
-        const updatedColumns = node.data.columns.filter((col: string) => !columnsToRemove.has(col))
+        const updatedColumns = (node.data.columns as string[]).filter((col: string) => !columnsToRemove.has(col))
 
         // 更新されたノード情報を返す
         return {
@@ -232,7 +235,7 @@ export const useEventNodeOperations = (id: string) => {
         }
       }).filter(node =>
         // クリックされたノード、またはカラムが1つ以上ある、または固定されたエッジを持つノードのみを残す
-        node.id === nodeId || node.data.columns.length > 0 || fixedEdges.has(node.id)
+        node.id === nodeId || (node.data.columns as string[]).length > 0 || fixedEdges.has(node.id)
       )
     })
 

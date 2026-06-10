@@ -1,11 +1,7 @@
 import React, { useCallback, useEffect } from 'react'
-import { Handle, Position, NodeProps } from 'reactflow'
+import { Node, Handle, Position, NodeProps } from '@xyflow/react'
 
-export interface CteNodeProps extends NodeProps {
-  data: CteData
-}
-
-interface CteData {
+type CteData = {
   label: string
   nodeType: string
   meta: Meta[]
@@ -15,6 +11,9 @@ interface CteData {
   unions?: string[]
   joins?: string[]
 }
+
+export type CteNodeType = Node<CteData, 'cteNode'>
+export type CteNodeProps = NodeProps<CteNodeType>
 
 export interface Meta {
   column: string

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Edge } from 'reactflow'
+import { Edge } from '@xyflow/react'
 
 export type SourceModeType = 'dbt' | 'looker'
 type MessageType = 'success' | 'error' | 'info'

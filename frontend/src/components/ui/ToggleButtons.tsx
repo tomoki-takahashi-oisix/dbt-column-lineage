@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { useStore as useStoreZustand } from '@/store/zustand'
-import { Edge, useReactFlow } from 'reactflow'
+import { Edge, useReactFlow } from '@xyflow/react'
 import { toBlob } from 'html-to-image'
 import { Camera, Table, Columns3 } from 'lucide-react'
 

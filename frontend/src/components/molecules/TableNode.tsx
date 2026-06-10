@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback } from 'react'
-import { NodeProps, Position } from 'reactflow'
+import { Node, NodeProps, Position } from '@xyflow/react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
 import EventNodeHandle from '@/components/molecules/TableNodeColumnHandle'
@@ -8,11 +8,7 @@ import EventNodeFrame from '@/components/molecules/TableNodeFrame'
 import TableNodeMoreColumns from '@/components/molecules/TableNodeMoreColumns'
 import TableNodeHandle from '@/components/molecules/TableNodeHandle'
 
-export interface TableNodeProps extends NodeProps {
-  data: TableNodeDataType
-}
-
-interface TableNodeDataType {
+type TableNodeDataType = {
   name: string
   color: string
   schema: string
@@ -21,6 +17,9 @@ interface TableNodeDataType {
   first: boolean
   last: boolean
 }
+
+export type TableNodeType = Node<TableNodeDataType, 'tableNode'>
+export type TableNodeProps = NodeProps<TableNodeType>
 
 
 export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {

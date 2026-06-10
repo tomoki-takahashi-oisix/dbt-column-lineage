@@ -2,10 +2,10 @@
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useGetWindowSize } from '@/hooks/useGetWindowSize'
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import ReactFlow, { addEdge, applyEdgeChanges, applyNodeChanges, Background, Connection, Controls,
+import { ReactFlow, addEdge, applyEdgeChanges, applyNodeChanges, Background, Connection, Controls,
   Edge, EdgeChange, Node, NodeChange, ReactFlowProvider, useEdgesState, useNodesState, useReactFlow
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 
 import { Header } from '@/components/organisms/Header'
 import { useStore as useStoreZustand } from '@/store/zustand'
@@ -49,8 +49,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], options: {rankdir: st
   edges.forEach((edge) => dagreGraph.setEdge(edge.source, edge.target))
   nodes.forEach((node) => dagreGraph.setNode(node.id, {
     label: node.id,
-    width: node.width,
-    height: node.height,
+    width: node.measured?.width,
+    height: node.measured?.height,
   }))
 
   dagre.layout(dagreGraph)

@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback } from 'react'
-import { NodeProps, Position } from 'reactflow'
+import { Node, NodeProps, Position } from '@xyflow/react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
 import TableNodeColumnHandle from '@/components/molecules/TableNodeColumnHandle'
@@ -8,11 +8,7 @@ import DashboardNodeFrame from '@/components/molecules/DashboardNodeFrame'
 import TableNodeHandle from '@/components/molecules/TableNodeHandle'
 
 
-export interface DashboardNodeProps extends NodeProps {
-  data: DashboardNodeType
-}
-
-interface DashboardNodeType {
+type DashboardNodeType = {
   id: string
   name: string
   url: string
@@ -20,6 +16,9 @@ interface DashboardNodeType {
   first: boolean
   last: boolean
 }
+
+export type DashboardNodeFlowType = Node<DashboardNodeType, 'dashboardNode'>
+export type DashboardNodeProps = NodeProps<DashboardNodeFlowType>
 interface DashboardElementType {
   id: string
   title: string

@@ -1,6 +1,6 @@
 'use client'
 import React, { memo } from 'react'
-import { Handle, Position, useStore } from 'reactflow'
+import { Handle, Position, useStore } from '@xyflow/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMinus, faPlus, faSpinner } from '@fortawesome/free-solid-svg-icons'
 import { useStore as useStoreZustand } from '@/store/zustand'

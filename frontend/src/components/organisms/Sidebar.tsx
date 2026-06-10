@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { Edge, Node, Position, ReactFlowState, useReactFlow, useStore } from 'reactflow'
+import { Edge, Node, Position, ReactFlowState, useReactFlow, useStore } from '@xyflow/react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faAngleRight, faAngleLeft } from '@fortawesome/free-solid-svg-icons'
@@ -25,8 +25,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], options: {rankdir: st
   edges.forEach((edge) => dagreGraph.setEdge(edge.source, edge.target))
   nodes.forEach((node) => dagreGraph.setNode(node.id, {
     label: node.id,
-    width: node.width,
-    height: node.height,
+    width: node.measured?.width,
+    height: node.measured?.height,
   }))
 
   dagre.layout(dagreGraph)
@@ -65,7 +65,7 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], options: {rankdir: st
 
 export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setNodesPositioned}: DagreNodePositioningProps) => {
   const { fitView } = useReactFlow()
-  const nodeInternals = useStore((state: ReactFlowState) => state.nodeInternals)
+  const nodeInternals = useStore((state: ReactFlowState) => state.nodeLookup)
   const flattenedNodes = Array.from(nodeInternals.values())
   const edges = useStore((state: ReactFlowState) => state.edges)
   const transform = useStore((state: ReactFlowState) => state.transform)
@@ -75,8 +75,8 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
   const router = useRouter()
 
   const goToCte = useCallback((node: Node, column: string) => {
-    const schema = node.data.schema
-    const source = node.data.name
+    const schema = String(node.data.schema)
+    const source = String(node.data.name)
     const query = new URLSearchParams({schema, source, column})
 
     router.push(`/cte?${query.toString()}`)
@@ -85,7 +85,7 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
   useEffect(() => {
     try {
       // node dimensions are not immediately detected, so we want to wait until they are
-      if (flattenedNodes[0]?.width) {
+      if (flattenedNodes[0]?.measured?.width) {
 
         // use dagre graph to layout nodes
 
@@ -128,7 +128,7 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
         {flattenedNodes.map((node) => (
           <div key={node.id}>
             <span
-                  className="font-medium break-words">{node.data.name}</span>
+                  className="font-medium break-words">{String(node.data.name)}</span>
             <div>x: {node.position.x.toFixed(2)}, y: {node.position.y.toFixed(2)}</div>
             {/*<ul className="list-disc px-4">*/}
             {/*  {node.data.columns.map((column: string, index: number) => (*/}
