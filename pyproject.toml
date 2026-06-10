@@ -40,3 +40,6 @@ include = ["dbt_column_lineage*"]
 write_to = "src/dbt_column_lineage/_version.py"
 version_scheme = "post-release"
 local_scheme = "node-and-date"
+
+[tool.pytest.ini_options]
+testpaths = ["test/unit"]

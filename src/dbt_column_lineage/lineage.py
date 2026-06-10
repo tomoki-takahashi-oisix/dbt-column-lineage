@@ -320,11 +320,53 @@ class DbtSqlglot:
                 break
         return element
 
-    def __extract_lineage_node(self, lin, source: str, need_meta=False) -> dict:
+    def __cte_names(self, parsed_sql) -> set:
+        """クエリ内で定義された CTE 名(小文字)の集合を返す。
+        sqlglot は UNPIVOT 等で CTE をテーブル末端(phantom)として返すことがあり
+        (sqlglot#7727)、これを実テーブルと区別して除外するために使う。"""
+        try:
+            return {cte.alias_or_name.lower() for cte in parsed_sql.find_all(exp.CTE)}
+        except Exception:
+            return set()
+
+    def __real_dbt_object_names(self) -> set:
+        """実在する dbt オブジェクト名(model/seed/snapshot/source)の小文字集合(遅延キャッシュ)。
+        phantom 判定で「CTE 名と一致するが実在オブジェクトでもある」ケースを除外するために使う。
+        dbt では `with dim_calendar as (select * from {{ ref('dim_calendar') }})` のように
+        CTE 名を実テーブル名と同じにするパターンが多く、CTE 名一致だけで弾くと実テーブルまで落ちる。"""
+        cache = getattr(self, '_real_object_names_cache', None)
+        if cache is None:
+            cache = set()
+            for v in self.dbt_manifest_nodes.values():
+                if v.get('resource_type') in ('model', 'seed', 'snapshot') and v.get('name'):
+                    cache.add(v['name'].lower())
+            for v in self.dbt_manifest_sources.values():
+                if v.get('name'):
+                    cache.add(v['name'].lower())
+            self._real_object_names_cache = cache
+        return cache
+
+    def __is_phantom_cte_label(self, label: str, cte_names: set, source: str) -> bool:
+        """label が「解析中クエリの CTE 名」かつ「実在 dbt オブジェクトでない」場合のみ phantom とみなす。
+        UNPIVOT 等で sqlglot が CTE をテーブル末端として誤って返す(sqlglot#7727)ケースを除外する。
+        実在モデル名と同名の CTE(ref ラップ)は実テーブルとして残す。"""
+        if not (cte_names and label.lower() in cte_names):
+            return False
+        if label.lower() in self.__real_dbt_object_names():
+            return False
+        self.logger.info(
+            f'skip phantom CTE node (sqlglot UNPIVOT limitation, see sqlglot#7727): '
+            f'label={label}, source={source}'
+        )
+        return True
+
+    def __extract_lineage_node(self, lin, source: str, need_meta=False, cte_names: set = None) -> dict:
         """1カラム分の sqlglot lineage Node を走査して {labels, columns(, meta)} を作る。
         per-column 経路(__get_sqlglot_lineage)とバッチ経路(__build_reverse_index の
         lineage(None))の双方から呼ぶ共有ヘルパー。両経路で抽出ロジックを一致させるため、
-        ここを単一の実装に集約している。"""
+        ここを単一の実装に集約している。
+        cte_names: 解析中クエリの CTE 名集合。Table 末端がこれに含まれる場合は
+        phantom(UNPIVOT 等で漏れた CTE)として除外する。"""
         labels = set()
         replace_columns = set()
         meta = []
@@ -333,7 +375,7 @@ class DbtSqlglot:
                 label = f'{node.expression.this}'
                 # 配下のデータがなければ最後とみなす
                 self.logger.debug(f'label: {label}')
-                if len(node.downstream) == 0:
+                if len(node.downstream) == 0 and not self.__is_phantom_cte_label(label, cte_names, source):
                     labels.add(label)
             if node.name != '*' and not isinstance(node.expression, exp.Table):
                 cte = node.expression.sql(dialect=self.dialect)
@@ -388,6 +430,8 @@ class DbtSqlglot:
         # forward の結果が変わるため、forward/CTE 経路はこの実装のまま維持する。
         # バッチ(reverse)経路は scope を渡すため上書きは無効で、__extract_lineage_node と
         # 結果が一致する(equality battery で担保)。
+        # 注意: 下のループ内で parsed_sql が再代入されるため、CTE 名はここ(原本)で先に取得しておく。
+        cte_names = self.__cte_names(parsed_sql)
         ret = {}
         for column in columns:
             column = column.upper()
@@ -409,7 +453,7 @@ class DbtSqlglot:
                     label = f'{node.expression.this}'
                     # 配下のデータがなければ最後とみなす
                     self.logger.debug(f'label: {label}')
-                    if len(node.downstream) == 0:
+                    if len(node.downstream) == 0 and not self.__is_phantom_cte_label(label, cte_names, source):
                         labels.add(label)
                 if node.name != '*' and not isinstance(node.expression, exp.Table):
                     cte = node.expression.sql(dialect=self.dialect)
@@ -676,6 +720,8 @@ class DbtSqlglot:
             except SqlglotError:
                 self.logger.error(f'parse sql. source={source}')
                 continue
+            # 子モデルのクエリ内 CTE 名(phantom 除外用)
+            ref_cte_names = self.__cte_names(parsed_sql)
 
             # catalog.json にカラム情報があればそれを使い、なければ manifest.json のカラム情報を使う
             ref_columns = ref_dbt_node.get('columns', self.__get_dbt_catalog(ref).get('columns', {}))
@@ -701,7 +747,7 @@ class DbtSqlglot:
                 ref_column_name = ref_column.upper()
                 if batch_nodes is not None:
                     node = batch_nodes.get(ref_column_name)
-                    item_labels_columns = self.__extract_lineage_node(node, source) if node is not None else {}
+                    item_labels_columns = self.__extract_lineage_node(node, source, cte_names=ref_cte_names) if node is not None else {}
                 else:
                     items = self.__get_sqlglot_lineage(source, parsed_sql, [ref_column_name], sqlglot_db_schema, sql_scope=sql_scope)
                     item_labels_columns = items.get(ref_column_name, {})
