@@ -1,0 +1,18 @@
+# Node / frontend build artifacts (イメージ内で npm ci → npm run build するため不要)
+**/node_modules/
+frontend/.next/
+frontend/out/
+
+# Python build/cache
+**/__pycache__/
+*.pyc
+.venv/
+venv/
+dist/
+*.egg-info/
+
+# VCS / IDE / OS / secrets
+.git/
+.idea/
+.DS_Store
+.envrc
