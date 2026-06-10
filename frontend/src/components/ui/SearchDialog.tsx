@@ -64,7 +64,7 @@ export const SearchDialog: React.FC<HeaderProps> = ({handleFetchData}) => {
       </button>
 
       <div
-        className={`origin-top-left absolute left-0 mt-2 w-[900px] rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-hidden z-50 ${
+        className={`origin-top-left absolute left-0 mt-2 w-[900px] rounded-md shadow-lg bg-white ring-1 ring-black/5 focus:outline-hidden z-50 ${
           isDialogOpen ? 'block' : 'hidden'
         }`}
       >

@@ -369,7 +369,7 @@ export const Cte = () => {
           <h4 className="h-[32px] px-1 text-2xl font-bold flex items-center">
             <span className="select-text truncate" title={tableName}>{tableName}</span>
             <span
-              className={`ms-2 text-sm font-semibold text-gray-500 dark:text-gray-400 select-text ${getColorClassForMaterialized(materialized)} bg-opacity-50 rounded-sm px-2 py-1`}>
+              className={`ms-2 text-sm font-semibold text-gray-500 dark:text-gray-400 select-text ${getColorClassForMaterialized(materialized)} rounded-sm px-2 py-1`}>
               {materialized}
             </span>
           </h4>
