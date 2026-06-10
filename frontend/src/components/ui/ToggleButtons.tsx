@@ -105,7 +105,7 @@ const ToggleButtons = () => {
   return (
     <div className="flex flex-col space-y-4">
       <div className="flex items-center space-x-4">
-        <div className="inline-flex rounded-md shadow-sm" role="group">
+        <div className="inline-flex rounded-md shadow-xs" role="group">
           {buttons.map((button) => (
             <button
               key={button.id}
@@ -130,7 +130,7 @@ const ToggleButtons = () => {
         </div>
         <button
           onClick={copyToClipboard}
-          className="rounded px-4 py-2 text-sm font-medium border bg-blue-500 text-white border-blue-600 flex items-center hover:bg-blue-600 transition-colors duration-200"
+          className="rounded-sm px-4 py-2 text-sm font-medium border bg-blue-500 text-white border-blue-600 flex items-center hover:bg-blue-600 transition-colors duration-200"
           aria-label="Copy to clipboard"
         >
           <Camera className="mr-2" size={16} />

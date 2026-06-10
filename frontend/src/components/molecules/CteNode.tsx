@@ -65,17 +65,17 @@ const CteNode: React.FC<CteNodeProps> = ({ data }) => {
           mt.nextColumns.map((nextColumn, i) => (
             <React.Fragment key={i}>
               <div className="flex items-center">
-              <span className="flex-shrink-0 w-4">
+              <span className="shrink-0 w-4">
                 {i === mt.nextColumns.length - 1 ? '└── ' : '├── '}
               </span>
                 <span className="bg-emerald-200 truncate" title={nextColumn}>{nextColumn}</span>
               </div>
               {mt.nextSources[i] && (
                 <div className="flex items-center">
-                <span className={`flex-shrink-0 ${i === mt.nextColumns.length - 1 ? 'w-4' : 'w-1 mr-3'}`}>
+                <span className={`shrink-0 ${i === mt.nextColumns.length - 1 ? 'w-4' : 'w-1 mr-3'}`}>
                   {i === mt.nextColumns.length - 1 ? '' : '│'}
                 </span>
-                  <span className="flex-shrink-0 w-4">└── </span>
+                  <span className="shrink-0 w-4">└── </span>
                   <span
                     className="bg-indigo-200 text-blue-700 truncate cursor-pointer underline"
                     onClick={(e) => handleClick(e, mt.nextSources[i], mt.nextColumns[i] || mt.column)}
@@ -90,7 +90,7 @@ const CteNode: React.FC<CteNodeProps> = ({ data }) => {
         ) : (
           mt.nextSources.map((nextSource, i) => (
             <div key={i} className="flex items-center">
-            <span className="flex-shrink-0 w-4">
+            <span className="shrink-0 w-4">
               {i === mt.nextSources.length - 1 ? '└── ' : '├── '}
             </span>
               <span
@@ -108,11 +108,11 @@ const CteNode: React.FC<CteNodeProps> = ({ data }) => {
   }
 
   return (
-    <div className="relative bg-white border border-gray-300 rounded-md p-1 shadow-sm w-48 min-h-[60px] flex flex-col">
+    <div className="relative bg-white border border-gray-300 rounded-md p-1 shadow-xs w-48 min-h-[60px] flex flex-col">
       <Handle type="target" position={Position.Top} className="opacity-0" />
-      <div className="flex flex-col flex-grow">
+      <div className="flex flex-col grow">
         <div className="font-semibold text-[11px] truncate mb-0.5" title={data.label}>{data.label}</div>
-        <div className="flex-grow overflow-hidden">
+        <div className="grow overflow-hidden">
           {renderColumnNames()}
         </div>
       </div>

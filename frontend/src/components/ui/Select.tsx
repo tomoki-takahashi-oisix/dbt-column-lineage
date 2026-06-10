@@ -62,12 +62,12 @@ const formatOptionLabel = ({ value, label, description }: any) => {
 
 const selectStyles = {
   control: {
-    base: 'flex border rounded-md bg-input hover:cursor-pointer min-w-[100px] !min-h-[36px] w-[100%] h-[100%] text-foreground text-foreground',
+    base: 'flex border rounded-md bg-input hover:cursor-pointer min-w-[100px] min-h-[36px]! w-full h-full text-foreground text-foreground',
     focus: '',
     nonFocus: 'border-border'
   },
   option: {
-    base: 'hover:cursor-pointer px-3 py-2 rounded flex gap-2 items-center hover:bg-muted !text-sm',
+    base: 'hover:cursor-pointer px-3 py-2 rounded-sm flex gap-2 items-center hover:bg-muted text-sm!',
     focus: 'bg-[rgba(var(--primary),0.1)]',
     selected: 'bg-[rgba(var(--primary),0.3)] hover:bg-[rgba(var(--primary),0.3)] text-primary font-bold'
   }
@@ -90,7 +90,7 @@ const classNames = {
   input: () => 'text-foreground pl-1',
   valueContainer: () => 'p-1 gap-1',
   singleValue: () => 'pl-1',
-  multiValue: () => 'flex bg-[rgba(var(--primary),0.15)] p-0 pl-2 rounded-sm text-xs overflow-hidden',
+  multiValue: () => 'flex bg-[rgba(var(--primary),0.15)] p-0 pl-2 rounded-xs text-xs overflow-hidden',
   multiValueLabel: () => 'py-1',
   multiValueRemove: () => 'bg-[rgba(var(--primary),0.1)] hover:bg-[rgba(var(--primary),0.2)] text-primary px-1 ml-2',
   indicatorsContainer: () => 'p-1 gap-1',

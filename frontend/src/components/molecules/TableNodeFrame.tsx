@@ -63,7 +63,7 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
       <div
         className={`relative py-2 px-3 flex items-center justify-between ${colorClass}`}
       >
-        <div className="flex-grow mr-2 overflow-hidden text-ellipsis">
+        <div className="grow mr-2 overflow-hidden text-ellipsis">
           {isClickableTableName ? (
             <span className="cursor-pointer hover:underline" onClick={handleClickTableName} title={tableName}>
               {tableName}
@@ -72,10 +72,10 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
             <span title={tableName}>{tableName}</span>
           )}
         </div>
-        <div className="flex-shrink-0 flex items-center">
+        <div className="shrink-0 flex items-center">
           <div className="relative group">
             <button
-              className="p-1 rounded-full hover:bg-gray-200 focus:outline-none"
+              className="p-1 rounded-full hover:bg-gray-200 focus:outline-hidden"
               onMouseEnter={() => setShowMenu(true)}
               onMouseLeave={() => setShowMenu(false)}
             >
@@ -106,7 +106,7 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
           {showHideButton() && (
             <button
               onClick={handleClickXmark}
-              className="p-1 ml-2 rounded-full hover:bg-gray-200 focus:outline-none"
+              className="p-1 ml-2 rounded-full hover:bg-gray-200 focus:outline-hidden"
               title="Hide node"
             >
               <FontAwesomeIcon icon={faTimes} />
