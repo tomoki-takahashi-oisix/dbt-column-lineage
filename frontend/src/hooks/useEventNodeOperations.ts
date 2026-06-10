@@ -92,7 +92,7 @@ export const useEventNodeOperations = (id: string) => {
     setEdges(mergedEdges)
 
     setClearNodePosition(true)
-  }, [getNodes, getEdges, showColumn, rightMaxDepth])
+  }, [getNodes, getEdges, showColumn, rightMaxDepth, mergeNodes, mergeEdges, setNodes, setEdges, setClearNodePosition, setLoading])
 
   // シングルリネージしてノードを追加する
   const addSingleLineage = useCallback(async (source: string, column: string) => {
@@ -127,7 +127,7 @@ export const useEventNodeOperations = (id: string) => {
     // updateNodeInternals(id)
 
     setClearNodePosition(true)
-  }, [getNodes, getEdges, showColumn, updateNodeInternals, leftMaxDepth])
+  }, [getNodes, getEdges, showColumn, updateNodeInternals, leftMaxDepth, mergeNodes, mergeEdges, setNodes, setEdges, setClearNodePosition, setLoading])
 
   // ノードを非表示にする
   const hideNode = useCallback(() => {
@@ -140,7 +140,7 @@ export const useEventNodeOperations = (id: string) => {
     ))
 
     setClearNodePosition(true)
-  }, [id, setNodes, setEdges])
+  }, [id, setNodes, setEdges, setClearNodePosition])
 
   // targetに複数のエッジを持つノードを取得
   const identifyNodesWithMultipleConnections = useCallback((edges: Edge[]): string[] => {
@@ -168,18 +168,24 @@ export const useEventNodeOperations = (id: string) => {
 
   // 子孫ノードを取得する
   const getDescendantNodes = useCallback((nodeId: string, edges: Edge[]): string[] => {
-    const childEdges = edges.filter(edge => edge.source === nodeId)
-    const childNodeIds = childEdges.map(edge => edge.target)
-    const nodesWithMultipleConnections =  identifyNodesWithMultipleConnections(edges)
+    // edges は再帰を通じて不変なので、複数接続ノードの判定は一度だけ計算する
+    const nodesWithMultipleConnections = identifyNodesWithMultipleConnections(edges)
 
-    const newChildNodeIds = childNodeIds.filter(childId => {
-      // 複数のエッジを持つノードはその子孫ノードを取得しない
-      return (!nodesWithMultipleConnections.includes(childId))
-    })
+    const walk = (id: string): string[] => {
+      const childEdges = edges.filter(edge => edge.source === id)
+      const childNodeIds = childEdges.map(edge => edge.target)
 
-    const descendantNodeIds = newChildNodeIds.flatMap(childId => getDescendantNodes(childId, edges))
-    return [...newChildNodeIds, ...descendantNodeIds]
-  }, [getEdges])
+      const newChildNodeIds = childNodeIds.filter(childId => {
+        // 複数のエッジを持つノードはその子孫ノードを取得しない
+        return (!nodesWithMultipleConnections.includes(childId))
+      })
+
+      const descendantNodeIds = newChildNodeIds.flatMap(childId => walk(childId))
+      return [...newChildNodeIds, ...descendantNodeIds]
+    }
+
+    return walk(nodeId)
+  }, [identifyNodesWithMultipleConnections])
 
   // 特定のカラムと関連するエッジを削除
   const hideColumnAndRelatedEdges = useCallback((nodeId: string, columnId: string) => {
@@ -249,7 +255,7 @@ export const useEventNodeOperations = (id: string) => {
     })
 
     setClearNodePosition(true)
-  }, [showColumn, setNodes, setEdges, getDescendantNodes, getNodes, getEdges])
+  }, [showColumn, setNodes, setEdges, getDescendantNodes, getNodes, getEdges, setClearNodePosition])
 
   // テーブルと関連するエッジを削除
   const hideTableAndRelatedEdges = useCallback((nodeId: string) => {
@@ -264,7 +270,7 @@ export const useEventNodeOperations = (id: string) => {
       }
     )
     setClearNodePosition(true)
-  }, [getDescendantNodes, getNodes, getEdges])
+  }, [getDescendantNodes, getNodes, getEdges, id, setNodes, setEdges, setClearNodePosition])
 
   return {
     addReverseLineage,

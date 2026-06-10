@@ -78,7 +78,7 @@ const ToggleButtons = () => {
 
     }
     setClearNodePosition(true)
-  }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges])
+  }, [getEdges, setEdges, setShowColumn, setClearNodePosition, columnModeEdges, setColumnModeEdges, setRightMaxDepth])
 
   const copyToClipboard = useCallback(async() => {
     const flowElement = document.querySelector('.react-flow__viewport') as HTMLElement
@@ -100,7 +100,7 @@ const ToggleButtons = () => {
         setTimeout(() => setMessage(null, null), 3000) // Clear message after 3 seconds
       }
     }
-  }, [])
+  }, [fitView, setMessage])
 
   return (
     <div className="flex flex-col space-y-4">

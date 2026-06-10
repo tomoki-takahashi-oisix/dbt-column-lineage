@@ -41,7 +41,7 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
     } catch (err) {
       console.error('Failed to copy text: ', err)
     }
-  }, [tableName])
+  }, [tableName, setMessage])
 
   const handleClickXmark = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()

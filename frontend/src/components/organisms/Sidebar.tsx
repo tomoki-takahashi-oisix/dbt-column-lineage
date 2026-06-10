@@ -80,7 +80,7 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
     const query = new URLSearchParams({schema, source, column})
 
     router.push(`/cte?${query.toString()}`)
-  }, [nodeInternals])
+  }, [nodeInternals, router])
 
   useEffect(() => {
     try {

@@ -114,7 +114,7 @@ export const Cl = () => {
 
     setNodesPositioned(false)
     return true
-  }, [searchParams])
+  }, [searchParams, setNodes, setEdges, setShowColumn, setMessage])
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) =>
@@ -143,7 +143,7 @@ export const Cl = () => {
       setClearNodePosition(false)
       setTimeout(()=>setNodesPositioned(false), 100)
     }
-  }, [clearNodePosition])
+  }, [clearNodePosition, setClearNodePosition])
 
   useEffect(() => {
     setNodesPositioned(false)
@@ -151,7 +151,7 @@ export const Cl = () => {
 
   useEffect(() => {
     setOptions({ rankdir: 'RL' })
-  }, [])
+  }, [setOptions])
 
   return (
     <div>
