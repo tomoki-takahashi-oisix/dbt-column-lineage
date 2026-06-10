@@ -127,7 +127,7 @@ export const useEventNodeOperations = (id: string) => {
     // updateNodeInternals(id)
 
     setClearNodePosition(true)
-  }, [getNodes, getEdges, showColumn, updateNodeInternals, leftMaxDepth, mergeNodes, mergeEdges, setNodes, setEdges, setClearNodePosition, setLoading])
+  }, [getNodes, getEdges, showColumn, leftMaxDepth, mergeNodes, mergeEdges, setNodes, setEdges, setClearNodePosition, setLoading])
 
   // ノードを非表示にする
   const hideNode = useCallback(() => {
@@ -255,7 +255,7 @@ export const useEventNodeOperations = (id: string) => {
     })
 
     setClearNodePosition(true)
-  }, [showColumn, setNodes, setEdges, getDescendantNodes, getNodes, getEdges, setClearNodePosition])
+  }, [setNodes, setEdges, getDescendantNodes, getNodes, getEdges, setClearNodePosition])
 
   // テーブルと関連するエッジを削除
   const hideTableAndRelatedEdges = useCallback((nodeId: string) => {

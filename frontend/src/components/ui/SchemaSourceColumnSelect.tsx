@@ -168,13 +168,17 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
       })
       router.push(`${pathname}?${query}`)
     }
-  }, [pathname, schema, selectedSources, activeSource, searchShowColumn, selectedColumnsBySource])
+  }, [pathname, schema, selectedSources, activeSource, searchShowColumn, selectedColumnsBySource,
+    searchParams, router, handleFetchData, handleFetchSchemasData, changeSchema, changeSources,
+    changeActiveSource, setLoading, setColumnModeEdges])
 
   const handleHeaderShowColumnChange = useCallback((newShowColumn: boolean) => {
     setSearchShowColumn(newShowColumn)
   }, [setSearchShowColumn])
 
-  // 初回読み込み時の処理
+  // 初回読み込み時の処理。マウント時に1回だけ実行する(URLパラメータからの復元 or 初期一覧取得)。
+  // submit/handleFetch* を deps に入れると毎レンダー再取得・再送信になるため意図的に空配列にしている。
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     if (searchParams.size) {
       submit(true)
@@ -184,6 +188,7 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
       handleFetchColumnsData(activeSource)
     }
   }, [])
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   useEffect(() => {
     // 基本条件: schemaとsourceの選択が必要
@@ -207,7 +212,7 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
 
     // 基本条件を満たし、かつCLモードでない場合は有効
     setIsSubmitDisabled(false)
-  }, [schema, selectedSources, activeSource, selectedColumnsBySource, searchShowColumn])
+  }, [schema, selectedSources, activeSource, selectedColumnsBySource, searchShowColumn, isCl, setIsSubmitDisabled])
 
   // 選択されたスキーマ、ソース、カラムの表示名を更新
   useEffect(() => {
@@ -220,9 +225,11 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
     } else {
       setHeaderSearchDisplayMessage('Select search model')
     }
-  }, [schema, activeSource, currentSelectedColumns])
+  }, [schema, activeSource, currentSelectedColumns, setHeaderSearchDisplayMessage])
 
-  // submitボタン押下時の処理
+  // submitボタン押下時の処理。submitClicked が true になった時だけ送信する。
+  // submit を deps に入れると submit の再生成で二重送信になりうるため意図的に submitClicked のみ。
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     if (submitClicked) {
       console.log(submitClicked)
@@ -230,6 +237,7 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
       resetSubmitClicked()
     }
   }, [submitClicked])
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   return (
     <div>

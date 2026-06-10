@@ -42,7 +42,7 @@ const TableNodeMoreColumns: React.FC<TableNodeMoreColumnsProps> = ({ schema, tab
     } finally {
       setFetching(false)
     }
-  }, [schema, tableName, nodeColumns, fetching, setFetching])
+  }, [schema, tableName, nodeColumns, fetching, setFetching, displayColumns.length])
 
   // (v)を押下したときカラム一覧を開閉する。カラム一覧を開く際にカラム情報を取得する
   const handleToggleColumns = useCallback(() => {

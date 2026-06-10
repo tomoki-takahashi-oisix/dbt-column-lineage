@@ -110,48 +110,6 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
   const options = useStoreZustand((state) => state.options)
   const setOptions = useStoreZustand((state) => state.setOptions)
 
-  const codeJump = useCallback((node: Node) => {
-    if (codeMirrorRef.current == null || codeMirrorRef.current.view == null) {
-      return
-    }
-    const view: EditorView = codeMirrorRef.current.view
-    const searchQuery = `${node.data.label} as (`
-    const cursorValues = searchTextCodeMirror(view, searchQuery)
-    if (!cursorValues) return
-    view?.dispatch({
-      selection: { head: cursorValues[0].from, anchor: cursorValues[0].to },
-      scrollIntoView: true,
-      effects: EditorView.scrollIntoView(cursorValues[0].from, { x: 'start', y: 'start' })
-    })
-  }, [searchParams])
-
-  const changeLayout = useCallback(() => {
-    if (nodes.length == 0 || nodesPositioned) {
-      return
-    }
-    const layouted = getLayoutedElements(nodes, edges, options)
-    setNodes([...layouted.nodes])
-    setEdges([...layouted.edges])
-
-    window.requestAnimationFrame(() => {
-      setTimeout(() => fitView(), 0)
-    })
-    setViewIsFit(true)
-    setNodesPositioned(true)
-  }, [nodesPositioned])
-
-  const onNodesChange = useCallback((changes: NodeChange[]) =>
-      setNodes((nds: Node[]) => applyNodeChanges(changes, nds))
-  , [setNodes])
-
-  const onEdgesChange = useCallback((changes: EdgeChange[]) =>
-      setEdges((eds: Edge[]) => applyEdgeChanges(changes, eds))
-  , [setEdges])
-
-  const onConnect = useCallback((connection: Connection) =>
-      setEdges((eds: Edge[]) => addEdge(connection, eds))
-  , [setEdges])
-
   const searchTextCodeMirror = useCallback((view: EditorView, searchQuery: string) => {
     const cursor = new SearchCursor(view.state.doc, searchQuery)
     const matches = []
@@ -171,6 +129,51 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     }
     return matches
   }, [])
+
+  const codeJump = useCallback((node: Node) => {
+    if (codeMirrorRef.current == null || codeMirrorRef.current.view == null) {
+      return
+    }
+    const view: EditorView = codeMirrorRef.current.view
+    const searchQuery = `${node.data.label} as (`
+    const cursorValues = searchTextCodeMirror(view, searchQuery)
+    if (!cursorValues) return
+    view?.dispatch({
+      selection: { head: cursorValues[0].from, anchor: cursorValues[0].to },
+      scrollIntoView: true,
+      effects: EditorView.scrollIntoView(cursorValues[0].from, { x: 'start', y: 'start' })
+    })
+  }, [codeMirrorRef, searchTextCodeMirror])
+
+  const changeLayout = useCallback(() => {
+    if (nodes.length == 0 || nodesPositioned) {
+      return
+    }
+    const layouted = getLayoutedElements(nodes, edges, options)
+    setNodes([...layouted.nodes])
+    setEdges([...layouted.edges])
+
+    window.requestAnimationFrame(() => {
+      setTimeout(() => fitView(), 0)
+    })
+    setViewIsFit(true)
+    setNodesPositioned(true)
+    // nodesPositioned が false になった時のみ現在の nodes/edges でレイアウトする。
+    // nodes/edges を deps に入れると setNodes→再生成→再レイアウトのループを招くため意図的に限定。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodesPositioned])
+
+  const onNodesChange = useCallback((changes: NodeChange[]) =>
+      setNodes((nds: Node[]) => applyNodeChanges(changes, nds))
+  , [setNodes])
+
+  const onEdgesChange = useCallback((changes: EdgeChange[]) =>
+      setEdges((eds: Edge[]) => applyEdgeChanges(changes, eds))
+  , [setEdges])
+
+  const onConnect = useCallback((connection: Connection) =>
+      setEdges((eds: Edge[]) => addEdge(connection, eds))
+  , [setEdges])
 
   const highlightColumns = useCallback(() => {
     if (nodes.length == 0 || nodesPositioned) return
@@ -229,25 +232,33 @@ const CteFlow = ({ nodes, edges, setNodes, setEdges, nodesPositioned, setNodesPo
     codeMirrorRef.current.view.dispatch({ effects: highlightEffect.of(columnHighlightDecorationRanges as any) })
     codeMirrorRef.current.view.dispatch({ effects: highlightEffect.of(nextColumnHighlightDecorationRanges as any) })
     codeMirrorRef.current.view.dispatch({ effects: highlightEffect.of(nextTableHighlightDecorationRanges as any) })
-  }, [entireMeta, nodesPositioned, codeMirrorRef.current])
+    // entireMeta / nodesPositioned 変化時のみ再ハイライトする(CodeMirror と dagre のタイミングに依存)。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entireMeta, nodesPositioned])
 
   const nodeTypes = useMemo(() => ({
     cte: (props: CteNodeProps) => <CteNode {...props} />
   }), [])
 
+  // nodesPositioned 変化時にハイライトを再適用する(highlightColumns は同一トリガで安定)
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     highlightColumns()
-  }, [nodesPositioned, codeMirrorRef.current])
+  }, [nodesPositioned])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
+  // nodesPositioned 変化時にレイアウトし直す(changeLayout を deps に入れると再レイアウトループを招く)
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if(isFirstRender.current) return
     changeLayout()
   }, [nodesPositioned])
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   useEffect(() => {
     setOptions({rankdir: 'TB'})
     isFirstRender.current = false
-  }, [])
+  }, [setOptions])
 
   return (
     <Suspense>
@@ -289,6 +300,11 @@ export const Cte = () => {
   const router = useRouter()
   const setMessage = useStoreZustand((state) => state.setMessage)
 
+  const handleClickLineageMode = useCallback(() => {
+    setMode('lineage')
+    setTimeout(()=>setNodesPositioned(false),100)
+  }, [setMode, setNodesPositioned])
+
   const handleFetchData = useCallback(async ({sources, columns}: QueryParams) => {
     setNodes([])
     setEdges([])
@@ -320,12 +336,7 @@ export const Cte = () => {
     handleClickLineageMode()
 
     return true
-  }, [router])
-
-  const handleClickLineageMode = useCallback(() => {
-    setMode('lineage')
-    setTimeout(()=>setNodesPositioned(false),100)
-  }, [setMode, setNodesPositioned])
+  }, [handleClickLineageMode, setNodes, setEdges, setMessage])
 
   const renderColumns = ({columns}: any) => {
     return (

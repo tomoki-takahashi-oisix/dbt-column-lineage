@@ -22,10 +22,12 @@ const ToggleButtons = () => {
     { id: 'column', icon: Columns3, label: 'Column' },
   ]
 
-  // showColumnが変更されたときにactiveButtonを変更する
+  // showColumnが変更されたときにactiveButtonを変更する(showColumn から導出する同期 setState)
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setActiveButton(showColumn ? 'column' : 'table')
   }, [showColumn])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ボタンが押されたときの処理
   const handleToggleButton = useCallback((buttonId: string) => {
