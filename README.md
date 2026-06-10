@@ -82,6 +82,19 @@ If you want to test the OAuth login, you can use the following commands:
 ```
 export GOOGLE_CLIENT_ID=(your client id)
 export GOOGLE_CLIENT_SECRET=(your client secret)
+# fixed session signing key (see note below)
+export SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 docker build -t test .
-docker run -p 5000:5000 -e USE_OAUTH=true -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET -e DEBUG_MODE=true test
+docker run -p 5000:5000 -e USE_OAUTH=true -e GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -e GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET -e SESSION_SECRET=$SESSION_SECRET -e DEBUG_MODE=true test
+```
+
+> **`SESSION_SECRET`** — The container runs `uvicorn --workers 2` (multiple processes), and a deployment may also scale out to multiple instances. Sessions are stored in a signed cookie, so every process must share the **same** signing key. With `USE_OAUTH=true`, set a fixed `SESSION_SECRET` (any stable random string) or sign-in breaks across workers (login loops / API `401`). If unset, each process generates its own random key (fine only for a single process). Without OAuth it is not needed.
+
+## limiting heavy lineage queries (optional)
+
+For very large projects a single request — e.g. reverse lineage of a hub column consumed by many models — can take a long time. Set `MAX_LINEAGE_SECONDS` to a wall-clock budget (seconds); when traversal exceeds it, the server stops and returns the partial result flagged `truncated` (the UI shows a banner) instead of hanging. Default `-1` = unbounded. In a hosted deployment set it below your gateway's request timeout so you get `200 + truncated` rather than a gateway timeout.
+
+```
+# example: cap lineage traversal at 100 seconds
+export MAX_LINEAGE_SECONDS=100
 ```
