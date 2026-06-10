@@ -2,7 +2,8 @@ import json
 import time
 import typing as t
 
-from sqlglot import exp, parse_one, MappingSchema, Expression, Schema
+from sqlglot import exp, parse_one, MappingSchema, Schema
+from sqlglot.expressions import Expression
 from sqlglot.errors import SqlglotError
 from sqlglot.lineage import lineage
 from sqlglot.optimizer import build_scope, Scope, qualify
@@ -31,6 +32,11 @@ class DbtSqlglot:
         if self._initialized:
             return
         self._initialized = True
+
+        # リバースカラムリネージの source 単位索引キャッシュ。
+        # per-request リセット(上の nodes/edges クリア)の外、_initialized ガードの
+        # 内側に置くことで、パースした dbt ファイル同様プロセス内で一度だけ保持される。
+        self.__reverse_index_cache = {}
 
         dbt_project_dir = get_dbt_project_dir()
         with open(f'{dbt_project_dir}/target/manifest.json') as f:
@@ -180,9 +186,9 @@ class DbtSqlglot:
         if len(dn_columns) == 0:
             sources = dbt_node.get('sources', [[]])[0]
             source_key = '.'.join(sources)
-            # FIXME data_cuisine_dbt は metadata から取る
+            project_name = self.dbt_metadata['project_name']
             ds_columns = list(
-                self.dbt_manifest_sources.get(f'source.data_cuisine_dbt.{source_key}', {}).get('columns', {}).keys())
+                self.dbt_manifest_sources.get(f'source.{project_name}.{source_key}', {}).get('columns', {}).keys())
             dn_columns = ds_columns
         return dn_columns
 
@@ -296,9 +302,9 @@ class DbtSqlglot:
         return ret
 
     def __get_dbt_node(self, dbt_target: str) -> {}:
+        project_name = self.dbt_metadata['project_name']
         for resource_type in ['model', 'seed', 'snapshot']:
-            # FIXME data_cuisine_dbt は metadata から取る
-            key = f'{resource_type}.data_cuisine_dbt.{dbt_target}'
+            key = f'{resource_type}.{project_name}.{dbt_target}'
             element = self.dbt_manifest_nodes.get(key, {})
             # self.logger.info(key, len(element))
             if len(element) > 0:
@@ -306,8 +312,9 @@ class DbtSqlglot:
         return element
 
     def __get_dbt_catalog(self, dbt_target: str) -> {}:
+        project_name = self.dbt_metadata['project_name']
         for resource_type in ['model', 'seed', 'snapshot']:
-            key = f'{resource_type}.data_cuisine_dbt.{dbt_target}'
+            key = f'{resource_type}.{project_name}.{dbt_target}'
             element = self.dbt_catalog_nodes.get(key, {})
             if len(element) > 0:
                 break
@@ -470,8 +477,10 @@ class DbtSqlglot:
             self.logger.info(deps_unique_id)
             deps_ref_dbt_node = self.dbt_manifest_nodes.get(deps_unique_id)
             if deps_ref_dbt_node is None:
+                # exposure / source / semantic_model などは manifest['nodes'] に
+                # 含まれないため、ループ全体を中断せずスキップする
                 self.logger.error(f'unique_id={deps_unique_id} is not found')
-                return
+                continue
             target_name = deps_ref_dbt_node.get('name')
             target_node_id = self.__str_to_base_10_int_str(target_name)
             if reverse:
@@ -559,12 +568,20 @@ class DbtSqlglot:
                 self.logger.debug(f'last node: {after_base_source}')
                 prev_node['data']['last'] = True
 
-    def __reverse_column_lineage(self, source: str, column: str):
+    def __build_reverse_index(self, source: str) -> list:
+        """source を直接の親に持つ全子モデルについて、各出力カラムの sqlglot リネージを
+        一度だけ計算し、source 由来のエッジ候補を索引化する(重い処理。per-source でキャッシュ)。
+
+        返り値: [{'child','schema','materialized','ref_column','columns'} ...]
+        source.upper() がリネージの labels に含まれるエントリのみ格納する。
+        これは __reverse_column_lineage の従来計算の出力をそのまま記録しているだけなので、
+        ある column のクエリ結果(従来: source in labels かつ column in columns)は
+        この索引を column で絞り込んだものと完全に一致する。"""
         dbt_node = self.__get_dbt_node(source)
         unique_id = dbt_node.get('unique_id')
         refs = self.dbt_manifest_child_map.get(unique_id, [])
 
-        data = {}
+        entries = []
         for ref in refs:
             ref_dbt_node = self.dbt_manifest_nodes.get(ref)
             if ref_dbt_node is None:
@@ -581,7 +598,6 @@ class DbtSqlglot:
             for info in depends_on_table_info:
                 tbl : exp.Table = info['table']
                 if tbl.name.lower() == source:
-                    print(tbl.name)
                     found = True
             if not found:
                 continue
@@ -607,47 +623,57 @@ class DbtSqlglot:
                 ref_column_name = ref_column.upper()
                 items = self.__get_sqlglot_lineage(source, parsed_sql, [ref_column_name], sqlglot_db_schema, sql_scope=sql_scope)
                 item_labels_columns = items.get(ref_column_name, {})
-                if column in item_labels_columns.get('columns', []):
-                    item_labels = item_labels_columns['labels']
-                    item_columns = item_labels_columns['columns']
-                    if source.upper() in item_labels and column in item_columns:
-                        self.logger.info(f'source={source}, column={column} found')
-                        r = data.get(ref_node_name, {'columns': [], 'schema': ref_schema, 'materialized': ref_materialized})
-                        r['columns'].append(ref_column_name)
-                        data[ref_node_name] = r
+                item_labels = item_labels_columns.get('labels', [])
+                item_columns = item_labels_columns.get('columns', [])
+                if source.upper() in item_labels:
+                    entries.append({
+                        'child': ref_node_name,
+                        'schema': ref_schema,
+                        'materialized': ref_materialized,
+                        'ref_column': ref_column_name,
+                        'columns': item_columns,
+                    })
+        return entries
 
-        ret_nodes = []
-        ret_edges = []
+    def __reverse_column_lineage(self, source: str, column: str):
+        # source 単位で索引を構築・キャッシュする。キャッシュは per-request リセット
+        # (__init__ の nodes/edges クリア)の外で保持されるため、同一プロセス内の
+        # 2回目以降のクエリ(同 source の任意 column)は再計算なしの即時参照になる。
+        entries = self.__reverse_index_cache.get(source)
+        if entries is None:
+            entries = self.__build_reverse_index(source)
+            self.__reverse_index_cache[source] = entries
+
+        dbt_node = self.__get_dbt_node(source)
+        source_schema = dbt_node.get('schema')
+        source_materialized = dbt_node.get('config', {}).get('materialized')
         target_id = self.__str_to_base_10_int_str(source)
-        for node_name, item in data.items():
-            target_schema = item['schema']
-            target_columns = item['columns']
-            target_materialized = item['materialized']
+
+        # 起点ノード(問い合わせ対象)を追加する。
+        # エッジの targetHandle が `{column}__target` を参照するため、
+        # 起点ノードには問い合わせカラムを必ず持たせる(無いとエッジが宙に浮く)。
+        # __add_node は id 重複時にカラムをマージするため、複数カラム/複数回の
+        # 呼び出しでも上書きされず累積する(self.nodes/self.edges を直接代入しない)。
+        self.__add_node(source, source_schema, [column], source_materialized, 0)
+
+        for entry in entries:
+            if column not in entry['columns']:
+                continue
+            node_name = entry['child']
+            ref_column_name = entry['ref_column']
             node_id = self.__str_to_base_10_int_str(node_name)
-            base_edge_id = f'{node_id}-{target_id}'
-            ret_nodes.append({
-                'id': node_id,
-                'data': {
-                    'name': node_name,
-                    'schema': target_schema,
-                    'columns': target_columns,
-                    'materialized': target_materialized,
-                    'first': False,'last': False
-                },
-                'position': {'x': 0,'y': 0},
-                'type': 'tableNode'
+            # 後段ノードを追加(既存ならカラムをマージ)
+            self.__add_node(node_name, entry['schema'], [ref_column_name], entry['materialized'], 0)
+            edge_id = f'{node_id}-{target_id}-{ref_column_name}-{column}'
+            if self.__find(self.edges, 'id', edge_id):
+                continue
+            self.edges.append({
+                'id': edge_id,
+                'source': node_id,
+                'target': target_id,
+                'sourceHandle': f'{ref_column_name}__source',
+                'targetHandle': f'{column}__target'
             })
-            for target_column in target_columns:
-                edge_id = f'{base_edge_id}-{target_column}-{column}'
-                ret_edges.append({
-                    'id': edge_id,
-                    'source': node_id,
-                    'target': target_id,
-                    'sourceHandle': f'{target_column}__source',
-                    'targetHandle': f'{column}__target'
-                })
-        self.edges = ret_edges
-        self.nodes = ret_nodes
 
     def __cte_dependency_impl(self, dbt_depends_on_nodes: [], compiled_code: str, source: str, columns: []) -> list:
         dependencies = {}
