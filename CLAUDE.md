@@ -59,6 +59,10 @@ A local virtualenv lives at **`.venv/`** (gitignored) with the backend deps (`sq
 
 `test/unit/` runs without a real dbt project/warehouse: `conftest.py` points `DbtSqlglot` at a tiny synthetic `manifest.json`/`catalog.json` under `test/unit/fixtures/target/` via `DBT_PROJECT_DIR`, and resets the `DbtSqlglot._instance` singleton per test. Current coverage centers on the **phantom-CTE filter** (the UNPIVOT lineage workaround for sqlglot#7727) plus a pure-sqlglot regression guard that fails if upstream sqlglot ever starts tracing UNPIVOT (a signal to drop the workaround). There is no CI test gate yet.
 
+### Demo project — `demo/`
+
+A second, larger synthetic dbt project (separate from the test fixtures) backs the README demo GIF (`docs/demo.gif`). It needs **no warehouse**: `demo/build_demo_manifest.py` hand-authors `demo/dbt_project/target/{manifest,catalog}.json` (run it to regenerate) — an e-commerce graph whose `compiled_code` is plain Snowflake SQL (no UNPIVOT, so column lineage traces cleanly). Point the backend at it with `DBT_PROJECT_DIR=$PWD/demo/dbt_project`. Note `demo/dbt_project/dbt_project.yml` is force-tracked (`git add -f`) despite the gitignore `dbt_project.yml` rule, since it's a fixture, not an environment-specific file.
+
 ## Architecture
 
 ### Lineage engine — `src/dbt_column_lineage/lineage.py`
