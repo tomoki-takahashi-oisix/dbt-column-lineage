@@ -41,6 +41,6 @@
     "postcss": "^8",
     "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4.3.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   }
 }
