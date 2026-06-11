@@ -5,10 +5,20 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dbt_column_lineage"
 dynamic = ["version"]
-description = "A tool for dbt column lineage"
+description = "Visualize column-level lineage of dbt models in the browser, parsed from manifest.json/catalog.json with sqlglot"
 authors = [{name = "Tomoki Takahashi", email = "takahashi_tomoki@oisixradaichi.co.jp"}]
 readme = "README.md"
 requires-python = ">=3.11"
+keywords = ["dbt", "lineage", "column-lineage", "sqlglot", "data-lineage", "snowflake"]
+dependencies = [
+    "sqlglot>=30,<31",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "requests>=2.31",
+    "pytz>=2024.1",
+    "itsdangerous>=2.1",
+    "typer>=0.12",
+]
 classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -17,6 +27,9 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# looker-sdk is only needed to run tools/looker_analyzer.py (offline analysis);
+# the published runtime reads target/looker_analysis.json and never calls the SDK.
+looker = ["looker-sdk>=24.0"]
 dev = [
     "pytest",
     "black",
@@ -27,7 +40,10 @@ dev = [
 dbt-column-lineage = "dbt_column_lineage.main:main"
 
 [project.urls]
+Homepage = "https://github.com/tomoki-takahashi-oisix/dbt-column-lineage"
 Repository = "https://github.com/tomoki-takahashi-oisix/dbt-column-lineage"
+Issues = "https://github.com/tomoki-takahashi-oisix/dbt-column-lineage/issues"
+Changelog = "https://github.com/tomoki-takahashi-oisix/dbt-column-lineage/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
