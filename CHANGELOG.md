@@ -18,6 +18,16 @@ for the full history prior to this file.
   dependencies. **Upgrade strongly recommended.**
 
 ### Added
+- **Edit mode: edit existing models.** Each analysis model now has an
+  **"Edit (design)"** item in its node menu (edit mode only) that converts it
+  into an editable design node — name, columns, materialization, and PKs become
+  editable. Column edges are preserved (handle IDs are unchanged).
+- **Editable materialization type** (`table` / `view` / `incremental` /
+  `snapshot` / `seed`) on design nodes, via a selector in the node header. The
+  header color follows the type (matching the legend); the dashed border keeps
+  signalling "editable". New nodes default to `table`. Round-trips through the
+  `?design=` snapshot / Export.
+- Replaced the default Next.js favicon with a lineage-themed `icon.svg`.
 - `LICENSE` file (MIT) — the license was declared in metadata but the text was
   missing.
 - `looker` optional extra for `looker-sdk` (only needed to run the offline

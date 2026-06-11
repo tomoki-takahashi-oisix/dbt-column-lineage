@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback } from 'react'
-import { Node, NodeProps, Position } from '@xyflow/react'
+import { Node, NodeProps, Position, useReactFlow } from '@xyflow/react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { useEventNodeOperations } from '@/hooks/useEventNodeOperations'
 import EventNodeHandle from '@/components/molecules/TableNodeColumnHandle'
@@ -31,6 +31,31 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
 
   const options = useStoreZustand((state) => state.options)
   const showColumn = useStoreZustand((state) => state.showColumn)
+  const editMode = useStoreZustand((state) => state.editMode)
+  const { setNodes } = useReactFlow()
+
+  // 編集モードで既存(分析)モデルを設計ノードへ変換する。ノード id とカラムの
+  // ハンドル ID(`${column}__source/target`)は据え置きなので、既存エッジは保たれる。
+  // 変換後は EditableTableNode のUIで名前/カラム/種別/PK をフル編集できる。
+  const handleMakeEditable = useCallback(() => {
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === id
+          ? {
+              ...n,
+              type: 'editableTableNode',
+              data: {
+                name: data.name,
+                columns: data.columns ?? [],
+                materialized: data.materialized || 'table',
+                custom: true,
+                manual: true,
+              },
+            }
+          : n,
+      ),
+    )
+  }, [id, data.name, data.columns, data.materialized, setNodes])
 
   // カラム名押下時にCTE画面に遷移する
   const handleClickColumnName = useCallback((e: React.MouseEvent, rawColumn: string) => {
@@ -73,6 +98,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
       isClickableTableName={true}
       materialized={data.materialized}
       docsUrl={data.docsUrl}
+      onMakeEditable={handleMakeEditable}
       content={
         <>
           {(firstNodeTable != data.name) ? (
@@ -116,6 +142,7 @@ export const TableNode: React.FC<TableNodeProps> = ({ data, id, selected }) => {
       isClickableTableName={false}
       materialized={data.materialized}
       docsUrl={data.docsUrl}
+      onMakeEditable={handleMakeEditable}
       content={
         <>
           {/* table => column 切替時に残るハンドル */}

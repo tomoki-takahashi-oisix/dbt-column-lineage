@@ -3,14 +3,16 @@ import React, { useCallback, useMemo } from 'react'
 import { Handle, Node, NodeProps, Position, useReactFlow } from '@xyflow/react'
 import { Trash2, Plus, X } from 'lucide-react'
 import { useStore as useStoreZustand } from '@/store/zustand'
+import { getColorClassForMaterialized, materializedTypes } from '@/lib/utils'
 
 // 設計フェーズで開発者が手で足す「これから作るテーブル」。
-// 属性はテーブル名とカラム名のみ。ハンドル ID は実テーブルノードと同じ
+// 属性はテーブル名・カラム名・materialize 種別。ハンドル ID は実テーブルノードと同じ
 // `${column}__source` / `${column}__target` 規約に合わせ、エッジが整合・再現できるようにする。
 export type EditableTableNodeDataType = {
   name: string
   columns: string[]
   pks?: string[] // 主キーのカラム名。複数指定で複合主キー
+  materialized?: string // table / view / incremental / snapshot / seed。未指定は table 扱い
   custom: true
   manual: true
 }
@@ -39,6 +41,10 @@ export const EditableTableNode: React.FC<EditableTableNodeProps> = ({ data, id, 
 
   const setName = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => updateNodeData(id, { name: e.target.value }),
+    [id, updateNodeData],
+  )
+  const setMaterialized = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => updateNodeData(id, { materialized: e.target.value }),
     [id, updateNodeData],
   )
   const renameColumn = useCallback(
@@ -87,7 +93,8 @@ export const EditableTableNode: React.FC<EditableTableNodeProps> = ({ data, id, 
       <Handle type="target" position={Position.Right} id={`${id}__target`} isConnectable style={{ ...dot, top: 16 }} />
       <Handle type="source" position={Position.Left} id={`${id}__source`} isConnectable style={{ ...dot, top: 16 }} />
 
-      <div className="flex items-center justify-between bg-violet-50 px-3 py-2">
+      {/* ヘッダー背景は materialize 種別カラー(凡例と一致)、外枠の破線で「編集可能」を示す */}
+      <div className={`flex items-center justify-between px-3 py-2 ${getColorClassForMaterialized(data.materialized || 'table')}`}>
         {editMode ? (
           <input
             className="nodrag w-full rounded-sm border border-violet-300 bg-white px-1 py-0.5 text-sm font-semibold text-gray-800 focus:outline-hidden"
@@ -98,9 +105,21 @@ export const EditableTableNode: React.FC<EditableTableNodeProps> = ({ data, id, 
         ) : (
           <span className="font-semibold text-gray-800" title={data.name}>{data.name || '(no name)'}</span>
         )}
+        {editMode && (
+          <select
+            className="nodrag ml-2 shrink-0 rounded-sm border border-violet-300 bg-white px-1 py-0.5 text-[10px] text-gray-700 focus:outline-hidden"
+            value={data.materialized || 'table'}
+            onChange={setMaterialized}
+            title="Materialization type"
+          >
+            {materializedTypes.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        )}
         {editMode && selected && (
           <button
-            className="nodrag ml-2 shrink-0 rounded-full p-1 text-gray-500 hover:bg-red-50 hover:text-red-600"
+            className="nodrag ml-1 shrink-0 rounded-full p-1 text-gray-500 hover:bg-red-50 hover:text-red-600"
             onClick={deleteNode}
             title="Delete table"
           >

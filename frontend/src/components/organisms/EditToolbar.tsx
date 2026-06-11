@@ -65,7 +65,7 @@ export const EditToolbar: React.FC<EditToolbarProps> = ({ nodes, edges, setNodes
         id,
         type: 'editableTableNode',
         position: centerPosition(),
-        data: { name: '', columns: [], custom: true, manual: true },
+        data: { name: '', columns: [], materialized: 'table', custom: true, manual: true },
       } as Node,
     ])
   }, [centerPosition, setNodes])
