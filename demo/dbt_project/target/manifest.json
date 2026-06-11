@@ -1,0 +1,389 @@
+{
+  "metadata": {
+    "project_name": "demo_shop"
+  },
+  "nodes": {
+    "model.demo_shop.stg_customers": {
+      "resource_type": "model",
+      "name": "stg_customers",
+      "alias": "stg_customers",
+      "unique_id": "model.demo_shop.stg_customers",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "staging",
+        "stg_customers"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "view"
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "email": {
+          "name": "email",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "country": {
+          "name": "country",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "signup_date": {
+          "name": "signup_date",
+          "type": "DATE",
+          "description": ""
+        }
+      },
+      "compiled_code": "select 1 as customer_id, 'Acme' as customer_name, 'a@b.com' as email, 'JP' as country, current_date as signup_date"
+    },
+    "model.demo_shop.stg_orders": {
+      "resource_type": "model",
+      "name": "stg_orders",
+      "alias": "stg_orders",
+      "unique_id": "model.demo_shop.stg_orders",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "staging",
+        "stg_orders"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "view"
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "order_date": {
+          "name": "order_date",
+          "type": "DATE",
+          "description": ""
+        },
+        "status": {
+          "name": "status",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "amount": {
+          "name": "amount",
+          "type": "NUMBER",
+          "description": ""
+        }
+      },
+      "compiled_code": "select 1 as order_id, 1 as customer_id, 1 as product_id, current_date as order_date, 'paid' as status, 100 as amount"
+    },
+    "model.demo_shop.stg_products": {
+      "resource_type": "model",
+      "name": "stg_products",
+      "alias": "stg_products",
+      "unique_id": "model.demo_shop.stg_products",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "staging",
+        "stg_products"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "view"
+      },
+      "depends_on": {
+        "nodes": []
+      },
+      "columns": {
+        "product_id": {
+          "name": "product_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "product_name": {
+          "name": "product_name",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "category": {
+          "name": "category",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "NUMBER",
+          "description": ""
+        }
+      },
+      "compiled_code": "select 1 as product_id, 'Widget' as product_name, 'Tools' as category, 10 as unit_price"
+    },
+    "model.demo_shop.int_customer_orders": {
+      "resource_type": "model",
+      "name": "int_customer_orders",
+      "alias": "int_customer_orders",
+      "unique_id": "model.demo_shop.int_customer_orders",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "intermediate",
+        "int_customer_orders"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "table"
+      },
+      "depends_on": {
+        "nodes": [
+          "model.demo_shop.stg_customers",
+          "model.demo_shop.stg_orders",
+          "model.demo_shop.stg_products"
+        ]
+      },
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "country": {
+          "name": "country",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "order_id": {
+          "name": "order_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "category": {
+          "name": "category",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "amount": {
+          "name": "amount",
+          "type": "NUMBER",
+          "description": ""
+        }
+      },
+      "compiled_code": "select c.customer_id, c.customer_name, c.country, o.order_id, p.category, o.amount from analytics_db.analytics.stg_orders o join analytics_db.analytics.stg_customers c on o.customer_id = c.customer_id join analytics_db.analytics.stg_products p on o.product_id = p.product_id"
+    },
+    "model.demo_shop.dim_customers": {
+      "resource_type": "model",
+      "name": "dim_customers",
+      "alias": "dim_customers",
+      "unique_id": "model.demo_shop.dim_customers",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "marts",
+        "dim_customers"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "table"
+      },
+      "depends_on": {
+        "nodes": [
+          "model.demo_shop.int_customer_orders"
+        ]
+      },
+      "columns": {
+        "customer_id": {
+          "name": "customer_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "customer_name": {
+          "name": "customer_name",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "country": {
+          "name": "country",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "lifetime_value": {
+          "name": "lifetime_value",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "order_count": {
+          "name": "order_count",
+          "type": "NUMBER",
+          "description": ""
+        }
+      },
+      "compiled_code": "select customer_id, customer_name, country, sum(amount) as lifetime_value, count(order_id) as order_count from analytics_db.analytics.int_customer_orders group by customer_id, customer_name, country"
+    },
+    "model.demo_shop.fct_orders": {
+      "resource_type": "model",
+      "name": "fct_orders",
+      "alias": "fct_orders",
+      "unique_id": "model.demo_shop.fct_orders",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "marts",
+        "fct_orders"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "table"
+      },
+      "depends_on": {
+        "nodes": [
+          "model.demo_shop.stg_orders"
+        ]
+      },
+      "columns": {
+        "order_id": {
+          "name": "order_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "NUMBER",
+          "description": ""
+        },
+        "order_date": {
+          "name": "order_date",
+          "type": "DATE",
+          "description": ""
+        },
+        "status": {
+          "name": "status",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "amount": {
+          "name": "amount",
+          "type": "NUMBER",
+          "description": ""
+        }
+      },
+      "compiled_code": "select order_id, customer_id, order_date, status, amount from analytics_db.analytics.stg_orders"
+    },
+    "model.demo_shop.rpt_revenue_by_country": {
+      "resource_type": "model",
+      "name": "rpt_revenue_by_country",
+      "alias": "rpt_revenue_by_country",
+      "unique_id": "model.demo_shop.rpt_revenue_by_country",
+      "package_name": "demo_shop",
+      "fqn": [
+        "demo_shop",
+        "models",
+        "marts",
+        "rpt_revenue_by_country"
+      ],
+      "database": "analytics_db",
+      "schema": "analytics",
+      "config": {
+        "materialized": "table"
+      },
+      "depends_on": {
+        "nodes": [
+          "model.demo_shop.int_customer_orders"
+        ]
+      },
+      "columns": {
+        "country": {
+          "name": "country",
+          "type": "VARCHAR",
+          "description": ""
+        },
+        "total_revenue": {
+          "name": "total_revenue",
+          "type": "NUMBER",
+          "description": ""
+        }
+      },
+      "compiled_code": "select country, sum(amount) as total_revenue from analytics_db.analytics.int_customer_orders group by country"
+    }
+  },
+  "sources": {},
+  "child_map": {
+    "model.demo_shop.stg_customers": [
+      "model.demo_shop.int_customer_orders"
+    ],
+    "model.demo_shop.stg_orders": [
+      "model.demo_shop.int_customer_orders",
+      "model.demo_shop.fct_orders"
+    ],
+    "model.demo_shop.stg_products": [
+      "model.demo_shop.int_customer_orders"
+    ],
+    "model.demo_shop.int_customer_orders": [
+      "model.demo_shop.dim_customers",
+      "model.demo_shop.rpt_revenue_by_country"
+    ],
+    "model.demo_shop.dim_customers": [],
+    "model.demo_shop.fct_orders": [],
+    "model.demo_shop.rpt_revenue_by_country": []
+  },
+  "parent_map": {
+    "model.demo_shop.stg_customers": [],
+    "model.demo_shop.stg_orders": [],
+    "model.demo_shop.stg_products": [],
+    "model.demo_shop.int_customer_orders": [
+      "model.demo_shop.stg_customers",
+      "model.demo_shop.stg_orders",
+      "model.demo_shop.stg_products"
+    ],
+    "model.demo_shop.dim_customers": [
+      "model.demo_shop.int_customer_orders"
+    ],
+    "model.demo_shop.fct_orders": [
+      "model.demo_shop.stg_orders"
+    ],
+    "model.demo_shop.rpt_revenue_by_country": [
+      "model.demo_shop.int_customer_orders"
+    ]
+  }
+}

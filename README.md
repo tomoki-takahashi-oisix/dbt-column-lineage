@@ -6,6 +6,14 @@ This is a tool to visualize the column level lineage of dbt models. It uses the 
 ![PyPI - Downloads](https://img.shields.io/pypi/dw/dbt-column-lineage)
 ![PyPI - License](https://img.shields.io/pypi/l/dbt-column-lineage)
 
+## Demo
+
+Trace a column across models, then expand more columns to grow the lineage interactively:
+
+![column-level lineage demo](https://raw.githubusercontent.com/tomoki-takahashi-oisix/dbt-column-lineage/develop/docs/demo.gif)
+
+> The demo runs on the synthetic dbt project under [`demo/`](https://github.com/tomoki-takahashi-oisix/dbt-column-lineage/tree/develop/demo) (no warehouse required). Regenerate its `manifest.json`/`catalog.json` with `python demo/build_demo_manifest.py`.
+
 # quickstart
 Install dbt-column-lineage using pip:
 ```
