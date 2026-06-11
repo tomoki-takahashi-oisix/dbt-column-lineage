@@ -24,9 +24,8 @@ export const CanvasActions = () => {
       try {
         const data = [new window.ClipboardItem({ 'image/png': blob })]
         await navigator.clipboard.write(data)
-        const params = new URLSearchParams(window.location.search).toString()
-        setMessage('Successfully copied to clipboard!:\n\n' + params, 'success')
-        setTimeout(() => setMessage(null, null), 6000)
+        setMessage('Canvas image copied to clipboard!', 'success')
+        setTimeout(() => setMessage(null, null), 3000)
       } catch (err) {
         setMessage('Failed to copy to clipboard', 'error')
         console.error('Failed to copy:', err)
