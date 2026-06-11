@@ -42,7 +42,7 @@ dbt-column-lineage run-params
 
 To develop the application, you will need to run the backend and frontend separately.
 ```
-git clone git@github.com:Oisix/dbt-column-lineage.git
+git clone git@github.com:tomoki-takahashi-oisix/dbt-column-lineage.git
 cd dbt-column-lineage
 ```
 ## for backend
@@ -78,7 +78,7 @@ export LOOKERSDK_BASE_URL=(your looker base url)
 export LOOKER_IGNORE_FOLDERS=(comma separated list of folders to ignore)
 export LOOKER_IGNORE_ELEMENTS=(comma separated list of dashboard elements to ignore)
 
-# it analyze the looker models, target/dashboad_analysis.json will be created
+# it analyzes the looker models; target/looker_analysis.json will be created
 python tools/looker_analyzer.py
 
 # rerun the backend
