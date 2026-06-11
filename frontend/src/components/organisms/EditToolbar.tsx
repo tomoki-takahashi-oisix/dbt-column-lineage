@@ -136,19 +136,19 @@ export const EditToolbar: React.FC<EditToolbarProps> = ({ nodes, edges, setNodes
   // Edit トグル本体は ToggleButtons の行に置いてあるので、ここでは編集中のアクション群だけ出す
   if (!editMode) return null
 
-  // 「作る」系は強調(violet)、「保存・共有」系は中立(gray)で見分けやすくする
-  const createBtn = 'flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50'
+  // 「作る」=紫チップ(設計ツールのパレット)。「保存・共有」=静かなゴースト。色のゾーニングで2群を区別する。
+  const createBtn = 'flex items-center gap-1 rounded-md bg-violet-50 px-2.5 py-1.5 text-xs font-semibold text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100'
   const saveBtn = 'flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100'
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="flex items-center gap-0.5 rounded-lg border border-gray-200 bg-white/95 px-1.5 py-1 shadow-md backdrop-blur-sm">
-        {/* 作る */}
+      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white/95 px-1.5 py-1 shadow-md backdrop-blur-sm">
+        {/* 作る(紫チップ): 左上の表示トグル"Table"と区別するため + を付け「追加」と明示 */}
         <button type="button" className={createBtn} onClick={addTableNode} {...describe('Add a planned table — set its name and columns')}>
-          <Table size={15} /> Table
+          <Table size={15} /> + Table
         </button>
         <button type="button" className={createBtn} onClick={addNoteNode} {...describe('Add a sticky note / annotation')}>
-          <StickyNote size={15} /> Note
+          <StickyNote size={15} /> + Note
         </button>
 
         <span className="mx-1 h-6 w-px bg-gray-200" aria-hidden />
