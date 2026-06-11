@@ -10,6 +10,15 @@ for the full history prior to this file.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-06-11
+
+### Changed
+- Home landing page: clearer hero copy ("Column-level lineage for dbt") with a
+  one-line value prop and an "Open the graph" CTA.
+
+### Fixed
+- Browser tab title typo: "dbt column linage" → "dbt column lineage".
+
 ## [0.6.0] - 2026-06-11
 
 First release published with its runtime dependencies declared — earlier
