@@ -2,7 +2,7 @@
 import React, { memo, useCallback, useMemo, useState } from 'react'
 import { faCopy } from '@fortawesome/free-regular-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faEllipsisV, faTimes, faUpRightFromSquare } from '@fortawesome/free-solid-svg-icons'
+import { faEllipsisV, faPenToSquare, faTimes, faUpRightFromSquare } from '@fortawesome/free-solid-svg-icons'
 import { useSearchParams } from 'next/navigation'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { getColorClassForMaterialized } from '@/lib/utils'
@@ -16,10 +16,12 @@ interface TableNodeFrameProps {
   content: React.ReactNode
   hideNode: () => void
   docsUrl?: string | null
+  onMakeEditable?: () => void // 編集モードで設計ノードへ変換する(未指定/非編集モードでは非表示)
 }
 
-const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selected, materialized, isClickableTableName, content, hideNode, docsUrl}) => {
+const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selected, materialized, isClickableTableName, content, hideNode, docsUrl, onMakeEditable}) => {
   const setMessage = useStoreZustand((state) => state.setMessage)
+  const editMode = useStoreZustand((state) => state.editMode)
   const searchParams = useSearchParams()
   const [showMenu, setShowMenu] = useState(false)
 
@@ -100,6 +102,16 @@ const TableNodeFrame: React.FC<TableNodeFrameProps> = ({schema, tableName, selec
                 onMouseLeave={() => setShowMenu(false)}
               >
                 <div className="py-1">
+                  {editMode && onMakeEditable && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowMenu(false); onMakeEditable() }}
+                      className="block w-full text-left px-4 py-2 text-sm text-violet-700 hover:bg-violet-50"
+                      title="Make this model editable (convert to a design node)"
+                    >
+                      <FontAwesomeIcon icon={faPenToSquare} className="mr-2" />
+                      Edit (design)
+                    </button>
+                  )}
                   <button
                     onClick={handleClickCopyName}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

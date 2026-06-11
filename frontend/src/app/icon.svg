@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="dbt column lineage">
+  <rect width="32" height="32" rx="7" fill="#007BF5"/>
+  <g stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M11 16 H15.5"/>
+    <path d="M15.5 16 C19 16 19.5 10 22 10"/>
+    <path d="M15.5 16 C19 16 19.5 22 22 22"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="9" cy="16" r="3"/>
+    <circle cx="24" cy="10" r="3"/>
+    <circle cx="24" cy="22" r="3"/>
+  </g>
+</svg>
