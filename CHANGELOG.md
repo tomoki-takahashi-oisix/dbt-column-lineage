@@ -10,6 +10,11 @@ for the full history prior to this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-11
+
+First release published with its runtime dependencies declared — earlier
+versions (0.5.x) install without them and are effectively broken; use 0.6.0+.
+
 ### Fixed
 - **Packaging: declare runtime dependencies.** `sqlglot`, `fastapi`, `uvicorn`,
   `requests`, `pytz`, `itsdangerous`, and `typer` are now listed in
