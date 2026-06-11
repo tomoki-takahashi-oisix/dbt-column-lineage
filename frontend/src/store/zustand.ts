@@ -20,6 +20,7 @@ type State = {
   isSubmitDisabled: boolean
   headerSearchDisplayMessage: string
   truncated: boolean
+  editMode: boolean
 }
 
 type Action = {
@@ -38,6 +39,7 @@ type Action = {
   setIsSubmitDisabled: (v: boolean) => void
   setHeaderSearchDisplayMessage: (v: string) => void
   setTruncated: (v: boolean) => void
+  setEditMode: (v: boolean) => void
 }
 
 export const useStore = create<State & Action>()((set) => ({
@@ -56,6 +58,7 @@ export const useStore = create<State & Action>()((set) => ({
   isSubmitDisabled: false,
   headerSearchDisplayMessage: 'Select search model',
   truncated: false,
+  editMode: false,
   setOptions: (v:any) => set({options: v}),
   setShowColumn: (v:boolean) => set({showColumn: v}),
   setSidebarActive: (v:boolean) => set({sidebarActive: v}),
@@ -71,4 +74,5 @@ export const useStore = create<State & Action>()((set) => ({
   setIsSubmitDisabled: (v: boolean) => set({ isSubmitDisabled: v }),
   setHeaderSearchDisplayMessage: (v: string) => set({ headerSearchDisplayMessage: v }),
   setTruncated: (v: boolean) => set({ truncated: v }),
+  setEditMode: (v: boolean) => set({ editMode: v }),
 }))

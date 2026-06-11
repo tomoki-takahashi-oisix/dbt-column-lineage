@@ -186,7 +186,9 @@ export const useEventNodeOperations = (id: string) => {
     const nodesWithMultipleConnections = identifyNodesWithMultipleConnections(edges)
 
     const walk = (id: string): string[] => {
-      const childEdges = edges.filter(edge => edge.source === id)
+      // ユーザーが手で引いた線(data.custom)は辿らない。生成リネージを畳んでも
+      // 設計ノード/コメントが巻き込まれて消えないようにするため。
+      const childEdges = edges.filter(edge => edge.source === id && !(edge.data as { custom?: boolean } | undefined)?.custom)
       const childNodeIds = childEdges.map(edge => edge.target)
 
       const newChildNodeIds = childNodeIds.filter(childId => {

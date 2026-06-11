@@ -186,6 +186,10 @@ export const SchemaSourceColumnSelect: React.FC<HeaderProps> = ({handleFetchData
   // submit/handleFetch* を deps に入れると毎レンダー再取得・再送信になるため意図的に空配列にしている。
   /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
+    // ?design=... での復元時は Cl 側がスナップショットを適用するため、ここでリネージを引き直さない
+    if (searchParams.has('design')) {
+      return
+    }
     if (searchParams.size) {
       submit(true)
     } else {
