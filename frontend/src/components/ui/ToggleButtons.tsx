@@ -91,7 +91,7 @@ const ToggleButtons = () => {
   /* eslint-enable react-hooks/exhaustive-deps */
 
   return (
-    <div className="inline-flex w-fit self-start overflow-hidden rounded-lg border border-gray-200 shadow-md" role="group">
+    <div className="inline-flex w-fit self-start overflow-hidden rounded-lg border border-gray-200" role="group">
       {buttons.map((button) => (
         <button
           key={button.id}
