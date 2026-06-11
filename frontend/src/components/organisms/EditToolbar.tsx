@@ -142,7 +142,7 @@ export const EditToolbar: React.FC<EditToolbarProps> = ({ nodes, edges, setNodes
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white/95 px-1.5 py-1 shadow-md backdrop-blur-sm">
+      <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white/95 px-1.5 py-0 shadow-md backdrop-blur-sm">
         {/* 作る(紫チップ): 左上の表示トグル"Table"と区別するため + を付け「追加」と明示 */}
         <button type="button" className={createBtn} onClick={addTableNode} {...describe('Add a planned table — set its name and columns')}>
           <Table size={15} /> + Table
