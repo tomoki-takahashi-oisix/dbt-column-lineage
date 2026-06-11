@@ -15,6 +15,8 @@ Trace a column across models, then expand more columns to grow the lineage inter
 
 > The demo runs on the synthetic dbt project under [`demo/`](https://github.com/tomoki-takahashi-oisix/dbt-column-lineage/tree/main/demo) (no warehouse required). Regenerate its `manifest.json`/`catalog.json` with `python demo/build_demo_manifest.py`.
 
+There's also an **edit / design mode** (pencil button, bottom-right): edit existing models or sketch new ones — name, columns, and materialization type (table/view/incremental/snapshot/seed) — then share the design as a URL or export it as JSON.
+
 # quickstart
 Install dbt-column-lineage using pip:
 ```
