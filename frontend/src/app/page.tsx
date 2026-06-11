@@ -21,10 +21,10 @@ export default function Page() {
           <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
             <div className="sm:text-center lg:text-left">
               <h1 className="text-4xl tracking-tight font-bold text-gray-900 sm:text-5xl sm:tracking-tight md:text-6xl md:tracking-tight">
-                <span className="block xl:inline">Dbt Column Lineage</span>
+                <span className="block xl:inline">Column-level lineage for dbt</span>
               </h1>
               <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                dbt column lineage visualization tool for data analysts and engineers.
+                See how every column flows through your dbt models — parsed from manifest.json with sqlglot, rendered as an interactive graph.
               </p>
               <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                 <button
@@ -32,7 +32,7 @@ export default function Page() {
                   type="button"
                   className="text-white bg-blue-400 hover:bg-blue-500 focus:ring-4 focus:outline-hidden font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2"
                 >
-                  Try it out
+                  Open the graph
                 </button>
               </div>
             </div>
