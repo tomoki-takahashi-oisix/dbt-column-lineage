@@ -1,0 +1,164 @@
+{
+  "nodes": {
+    "model.demo_shop.stg_customers": {
+      "columns": {
+        "CUSTOMER_ID": {
+          "name": "CUSTOMER_ID",
+          "type": "NUMBER"
+        },
+        "CUSTOMER_NAME": {
+          "name": "CUSTOMER_NAME",
+          "type": "VARCHAR"
+        },
+        "EMAIL": {
+          "name": "EMAIL",
+          "type": "VARCHAR"
+        },
+        "COUNTRY": {
+          "name": "COUNTRY",
+          "type": "VARCHAR"
+        },
+        "SIGNUP_DATE": {
+          "name": "SIGNUP_DATE",
+          "type": "DATE"
+        }
+      }
+    },
+    "model.demo_shop.stg_orders": {
+      "columns": {
+        "ORDER_ID": {
+          "name": "ORDER_ID",
+          "type": "NUMBER"
+        },
+        "CUSTOMER_ID": {
+          "name": "CUSTOMER_ID",
+          "type": "NUMBER"
+        },
+        "PRODUCT_ID": {
+          "name": "PRODUCT_ID",
+          "type": "NUMBER"
+        },
+        "ORDER_DATE": {
+          "name": "ORDER_DATE",
+          "type": "DATE"
+        },
+        "STATUS": {
+          "name": "STATUS",
+          "type": "VARCHAR"
+        },
+        "AMOUNT": {
+          "name": "AMOUNT",
+          "type": "NUMBER"
+        }
+      }
+    },
+    "model.demo_shop.stg_products": {
+      "columns": {
+        "PRODUCT_ID": {
+          "name": "PRODUCT_ID",
+          "type": "NUMBER"
+        },
+        "PRODUCT_NAME": {
+          "name": "PRODUCT_NAME",
+          "type": "VARCHAR"
+        },
+        "CATEGORY": {
+          "name": "CATEGORY",
+          "type": "VARCHAR"
+        },
+        "UNIT_PRICE": {
+          "name": "UNIT_PRICE",
+          "type": "NUMBER"
+        }
+      }
+    },
+    "model.demo_shop.int_customer_orders": {
+      "columns": {
+        "CUSTOMER_ID": {
+          "name": "CUSTOMER_ID",
+          "type": "NUMBER"
+        },
+        "CUSTOMER_NAME": {
+          "name": "CUSTOMER_NAME",
+          "type": "VARCHAR"
+        },
+        "COUNTRY": {
+          "name": "COUNTRY",
+          "type": "VARCHAR"
+        },
+        "ORDER_ID": {
+          "name": "ORDER_ID",
+          "type": "NUMBER"
+        },
+        "CATEGORY": {
+          "name": "CATEGORY",
+          "type": "VARCHAR"
+        },
+        "AMOUNT": {
+          "name": "AMOUNT",
+          "type": "NUMBER"
+        }
+      }
+    },
+    "model.demo_shop.dim_customers": {
+      "columns": {
+        "CUSTOMER_ID": {
+          "name": "CUSTOMER_ID",
+          "type": "NUMBER"
+        },
+        "CUSTOMER_NAME": {
+          "name": "CUSTOMER_NAME",
+          "type": "VARCHAR"
+        },
+        "COUNTRY": {
+          "name": "COUNTRY",
+          "type": "VARCHAR"
+        },
+        "LIFETIME_VALUE": {
+          "name": "LIFETIME_VALUE",
+          "type": "NUMBER"
+        },
+        "ORDER_COUNT": {
+          "name": "ORDER_COUNT",
+          "type": "NUMBER"
+        }
+      }
+    },
+    "model.demo_shop.fct_orders": {
+      "columns": {
+        "ORDER_ID": {
+          "name": "ORDER_ID",
+          "type": "NUMBER"
+        },
+        "CUSTOMER_ID": {
+          "name": "CUSTOMER_ID",
+          "type": "NUMBER"
+        },
+        "ORDER_DATE": {
+          "name": "ORDER_DATE",
+          "type": "DATE"
+        },
+        "STATUS": {
+          "name": "STATUS",
+          "type": "VARCHAR"
+        },
+        "AMOUNT": {
+          "name": "AMOUNT",
+          "type": "NUMBER"
+        }
+      }
+    },
+    "model.demo_shop.rpt_revenue_by_country": {
+      "columns": {
+        "COUNTRY": {
+          "name": "COUNTRY",
+          "type": "VARCHAR"
+        },
+        "TOTAL_REVENUE": {
+          "name": "TOTAL_REVENUE",
+          "type": "NUMBER"
+        }
+      }
+    }
+  }
+}
