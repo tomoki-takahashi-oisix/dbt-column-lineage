@@ -1,7 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { Edge, Node, Position, ReactFlowState, useReactFlow, useStore } from '@xyflow/react'
+import { Edge, Node, Position, ReactFlowState, useReactFlow, useStore, useStoreApi } from '@xyflow/react'
 import { useStore as useStoreZustand } from '@/store/zustand'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faAngleRight, faAngleLeft } from '@fortawesome/free-solid-svg-icons'
@@ -69,9 +69,9 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], options: {rankdir: st
 
 export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setNodesPositioned}: DagreNodePositioningProps) => {
   const { fitView } = useReactFlow()
+  const storeApi = useStoreApi()
   const nodeInternals = useStore((state: ReactFlowState) => state.nodeLookup)
   const flattenedNodes = Array.from(nodeInternals.values())
-  const edges = useStore((state: ReactFlowState) => state.edges)
   const transform = useStore((state: ReactFlowState) => state.transform)
   const options = useStoreZustand((state) => state.options)
   const sidebarActive = useStoreZustand((state) => state.sidebarActive)
@@ -88,15 +88,20 @@ export const Sidebar = ({setNodes, setEdges, setViewIsFit, nodesPositioned, setN
 
   useEffect(() => {
     try {
+      // render 時のクロージャ(flattenedNodes/edges)は古い store を指していることがある:
+      // Import 直後は setNodes 済みでも StoreUpdater の同期前で、旧グラフでレイアウト→
+      // setNodes するとインポート内容を上書きしてしまう。effect 実行時点の最新 state を読む。
+      const { nodeLookup, edges } = storeApi.getState()
+      const currentNodes = Array.from(nodeLookup.values())
       // node dimensions are not immediately detected, so we want to wait until they are
-      if (flattenedNodes[0]?.measured?.width) {
+      if (currentNodes[0]?.measured?.width) {
 
         // use dagre graph to layout nodes
 
         // if nodes exist and nodes are not positioned
         // console.log(nodesPositioned)
-        if (flattenedNodes.length > 0 && !nodesPositioned) {
-          const layouted = getLayoutedElements(flattenedNodes, edges, options)
+        if (currentNodes.length > 0 && !nodesPositioned) {
+          const layouted = getLayoutedElements(currentNodes, edges, options)
 
           console.log('redraw', layouted)
           // update react flow state
