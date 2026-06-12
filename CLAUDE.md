@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Frontend**: Next.js 16 (App Router) + React 19 + `@xyflow/react` (React Flow v12), statically exported (`output: 'export'`).
 - **Optional Looker integration**: maps dbt tables/columns to Looker dashboards that consume them.
 
+**`docs/ui-guide.md`** (linked from the README) is the user-facing guide to every UI operation — including the **design snapshot JSON spec** (`?design=` format, handle conventions, lz-string URL encoding) that external tools/LLM agents author against. Keep it in sync when changing UI behavior, the snapshot format, or query params; its example JSON and one-liners are meant to stay copy-paste runnable.
+
 ## Development
 
 Backend and frontend run as separate dev servers.
@@ -60,11 +62,13 @@ The `dbt-column-lineage` entrypoint (`main.cli`, Typer) has commands: `run` (lau
 A local virtualenv lives at **`.venv/`** (gitignored) with the backend deps (`sqlglot`, `fastapi`, …) and `pytest` already installed. Run the suite through it — the system `python3` does **not** have `sqlglot`, so `python3 -m pytest` fails at import collection:
 
 ```bash
-.venv/bin/python -m pytest test/unit -q   # 27 passing; testpaths = ["test/unit"] (see pyproject)
+.venv/bin/python -m pytest test/unit -q   # 27 passing on sqlglot >=30.11 (26 + 1 skipped below); testpaths = ["test/unit"] (see pyproject)
 # fresh env instead: pip install -e ".[dev]" then pytest
 ```
 
-`test/unit/` runs without a real dbt project/warehouse: `conftest.py` points `DbtSqlglot` at a tiny synthetic `manifest.json`/`catalog.json` under `test/unit/fixtures/target/` via `DBT_PROJECT_DIR`, and resets the `DbtSqlglot._instance` singleton per test. Current coverage centers on the **phantom-CTE filter** (the UNPIVOT lineage workaround for sqlglot#7727) plus a pure-sqlglot regression guard that fails if upstream sqlglot ever starts tracing UNPIVOT (a signal to drop the workaround). There is no CI test gate yet.
+`test/unit/` runs without a real dbt project/warehouse: `conftest.py` points `DbtSqlglot` at a tiny synthetic `manifest.json`/`catalog.json` under `test/unit/fixtures/target/` via `DBT_PROJECT_DIR`, and resets the `DbtSqlglot._instance` singleton per test. Current coverage centers on the **phantom-CTE filter** (the UNPIVOT lineage workaround for sqlglot#7727). **sqlglot#7727 was fixed in sqlglot 30.11.0**: the regression guard (`test_sqlglot_unpivot_regression.py`) now asserts the *fixed* fan-out behavior (skipped on sqlglot <30.11), and the filter is kept only because `pyproject` still allows `sqlglot>=30,<31` — drop it when the lower bound moves past 30.11.
+
+**CI** (`.github/workflows/ci.yml`) gates every PR and push to main: backend pytest on Python 3.11/3.12/3.13/3.14 (installed via `pip install -e ".[dev]"`, which also validates `[project.dependencies]` resolves) and frontend `npm run lint` + `npm run build`.
 
 ### Demo project — `demo/`
 
@@ -115,8 +119,10 @@ Next.js App Router. Two main pages: `/cl` (column/table lineage graph) and `/cte
 
 `justfile` holds deploy/release recipes:
 
-- `just pypi <version>` — builds the frontend, tags `v<version>`, builds the sdist/wheel (frontend `out/` is packaged as `frontend_out`), and `twine upload`s to PyPI. Version is derived from git tags via `setuptools_scm` (written to `_version.py`).
-- `just deploy-aws` — builds the multi-stage `Dockerfile` (node build → python deps → slim runtime) and pushes to ECR.
+- `just pypi <version>` — builds the frontend, tags `v<version>`, builds the sdist/wheel (frontend `out/` is packaged as `frontend_out`), `twine upload`s to PyPI, pushes the tag, and creates a **GitHub Release** whose notes are extracted from the `## [version]` section of `CHANGELOG.md`. Version is derived from git tags via `setuptools_scm` (written to `_version.py`). Run it via `direnv exec . just pypi <ver>` from a non-interactive shell (the recipe relies on `.envrc` for the venv PATH and twine credentials).
+- `just deploy-aws` — builds the multi-stage `Dockerfile` (node build → python deps → slim runtime) and pushes to ECR. The Docker deps layer installs `[project.dependencies]` extracted from `pyproject.toml` (single source; no `requirements.txt`), and deliberately omits `looker-sdk` (runtime never imports it).
 - `just looker` — runs the Looker analysis and uploads the result to S3.
 
 The packaged app serves the prebuilt frontend, so the published wheel needs no Node at runtime — but `just pypi` must rebuild `frontend/out` first or stale assets ship.
+
+**CHANGELOG workflow** (`CHANGELOG.md` is human-curated, Keep-a-Changelog format): every PR adds its entries under `## [Unreleased]`; before a release, roll `[Unreleased]` up into `## [X.Y.Z] - date` via PR (main is branch-protected), then `just pypi X.Y.Z` publishes and reuses that section as the release notes. Don't skip the per-PR entry — it's easy to forget and the release notes depend on it.
