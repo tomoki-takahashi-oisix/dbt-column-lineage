@@ -378,7 +378,9 @@ class DbtSqlglot:
     def __is_phantom_cte_label(self, label: str, cte_names: set, source: str) -> bool:
         """label が「解析中クエリの CTE 名」かつ「実在 dbt オブジェクトでない」場合のみ phantom とみなす。
         UNPIVOT 等で sqlglot が CTE をテーブル末端として誤って返す(sqlglot#7727)ケースを除外する。
-        実在モデル名と同名の CTE(ref ラップ)は実テーブルとして残す。"""
+        実在モデル名と同名の CTE(ref ラップ)は実テーブルとして残す。
+        #7727 は sqlglot 30.11.0 で修正済み(それ以降 phantom は発生せずこのフィルタは素通り)だが、
+        パッケージは sqlglot>=30,<31 を許容するため、下限を 30.11 以上に上げるまでは残す。"""
         if not (cte_names and label.lower() in cte_names):
             return False
         if label.lower() in self.__real_dbt_object_names():
