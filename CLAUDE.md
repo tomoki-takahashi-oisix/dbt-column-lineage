@@ -16,7 +16,7 @@ Backend and frontend run as separate dev servers.
 
 ```bash
 # Backend (port 5000) — from repo root, with venv activated
-pip install -r requirements.txt
+pip install -e ".[dev]"   # deps are declared only in pyproject.toml (no requirements.txt)
 uvicorn --app-dir src dbt_column_lineage.main:app --port=5000 --reload
 
 # Frontend (port 3000) — from frontend/
