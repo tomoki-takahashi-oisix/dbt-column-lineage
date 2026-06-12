@@ -58,7 +58,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -e ".[dev]"
 
 uvicorn --app-dir src dbt_column_lineage.main:app --port=5000 --reload
 ```

@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Python backend (pyproject.toml / requirements.txt)
+  # Python backend (pyproject.toml)
   - package-ecosystem: pip
     directory: "/"
     schedule:

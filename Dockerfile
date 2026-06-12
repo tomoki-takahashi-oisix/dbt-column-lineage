@@ -12,9 +12,13 @@ RUN npm run build
 FROM python:3.12 AS python-builder
 WORKDIR /app
 
-COPY ./requirements.txt .
+# 依存は pyproject.toml の [project.dependencies] が単一の情報源。
+# パッケージ本体は site-packages でなく /app/src から動かすため、依存だけを抽出して入れる
+# (この層は pyproject.toml が変わらない限りキャッシュされる)。
+# looker-sdk は tools/looker_analyzer.py(イメージ外で実行)専用なので入れない。
+COPY ./pyproject.toml .
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir $(python -c "import tomllib; print(' '.join(tomllib.load(open('pyproject.toml','rb'))['project']['dependencies']))")
 
 FROM python:3.12-slim-bookworm
 
