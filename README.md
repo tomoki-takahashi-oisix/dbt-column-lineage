@@ -17,6 +17,8 @@ Trace a column across models, then expand more columns to grow the lineage inter
 
 There's also an **edit / design mode** (pencil button, bottom-right): edit existing models or sketch new ones — name, columns, and materialization type (table/view/incremental/snapshot/seed) — then share the design as a URL or export it as JSON.
 
+📖 See the **[UI guide](https://github.com/tomoki-takahashi-oisix/dbt-column-lineage/blob/main/docs/ui-guide.md)** for a tour of every operation — exploring the graph, the CTE page, edit / design mode, Looker mode, deep links, and the design-snapshot JSON spec for generating designs programmatically (e.g. from CI or an LLM agent).
+
 # quickstart
 Install dbt-column-lineage using pip:
 ```
