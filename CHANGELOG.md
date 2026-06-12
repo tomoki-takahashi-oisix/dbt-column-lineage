@@ -10,6 +10,8 @@ for the full history prior to this file.
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-12
+
 ### Added
 - **UI guide** (`docs/ui-guide.md`, linked from the README): every operation on
   the lineage canvas and the CTE page, edit / design mode, deep links — plus the
