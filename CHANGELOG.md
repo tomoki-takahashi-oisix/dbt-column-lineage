@@ -10,6 +10,31 @@ for the full history prior to this file.
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-12
+
+### Added
+- **UI guide** (`docs/ui-guide.md`, linked from the README): every operation on
+  the lineage canvas and the CTE page, edit / design mode, deep links — plus the
+  **design snapshot JSON spec** with `?design=` URL one-liners (lz-string /
+  Python `lzstring`), so designs can be generated programmatically (e.g. by CI
+  or an LLM agent attaching a design link to an automated dbt PR).
+- CI now tests Python 3.13 and 3.14 (classifiers updated accordingly).
+
+### Fixed
+- **Edit mode: Import was a no-op on a loaded graph.** The dagre relayout
+  effect read stale React Flow state and overwrote the imported snapshot with
+  the previous graph. Imports (and large `?design=` restores) now keep all
+  nodes, names, and columns.
+
+### Changed
+- Python dependencies are now single-sourced in `pyproject.toml`
+  (`requirements.txt` removed); the Docker image installs from
+  `[project.dependencies]` and no longer bundles `looker-sdk` (runtime never
+  imports it — it stays in the `[looker]` extra for the offline analyzer).
+- sqlglot 30.11.0 fixed UNPIVOT lineage (sqlglot#7727); the regression canary
+  now asserts the fixed behavior. The phantom-CTE filter remains for
+  sqlglot 30.x < 30.11 installs.
+
 ## [0.6.1] - 2026-06-11
 
 ### Changed
